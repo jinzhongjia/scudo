@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) void {
 
     // 此处是默认调用的zig build 也就是install
 
-kernel.
+
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
