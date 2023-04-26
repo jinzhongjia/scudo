@@ -30,17 +30,21 @@ pub fn build(b: *std.Build) void {
         .name = "zos",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "src/init/init.zig" },
         .target = target,
         .optimize = optimize,
     });
 
     kernel.setLinkerScriptPath(.{ .path = "src/link.ld" });
 
+    kernel.addAssemblyFile("src/boot/start.s");
+
+    const multiboot = b.createModule(.{ .source_file = FileSource.relative("src/multiboot/multiboot.zig") });
+
+    kernel.addModule("multiboot", multiboot);
+
     // 此处是默认调用的zig build 也就是install
-
-
-
+    //
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
