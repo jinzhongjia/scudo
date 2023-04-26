@@ -8,11 +8,10 @@ _start:
 
     push %ebx   // Pass multiboot info structure.
     push %eax   // Pass multiboot magic code.
+
     call init  // Call the kernel.
 
     // Halt the CPU.
-// loop:
-//     hlt
-//     jmp loop
-    cli
-    hlt
+ loop:
+     hlt
+     jmp loop

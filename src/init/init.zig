@@ -1,5 +1,6 @@
 const std = @import("std");
 const multiboot = @import("multiboot").v1;
+const assembly = @import("cpu").x86.assembly;
 
 // NOTE: assert should be replace with @function panic implemented by us.
 const assert = std.debug.assert;
@@ -13,5 +14,6 @@ export fn init(magic: u32, info: *const multiboot.Info) void {
 
     assert(magic == multiboot.BOOT_MAGIC);
 
-    while (true) {}
+    // assembly.sti();
+    assembly.hlt();
 }

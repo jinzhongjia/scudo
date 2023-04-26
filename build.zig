@@ -43,6 +43,10 @@ pub fn build(b: *std.Build) void {
 
     kernel.addModule("multiboot", multiboot);
 
+    const cpu = b.createModule(.{ .source_file = FileSource.relative("src/cpu/cpu.zig") });
+
+    kernel.addModule("cpu", cpu);
+
     // 此处是默认调用的zig build 也就是install
     //
     // This declares intent for the executable to be installed into the
