@@ -89,7 +89,7 @@ pub fn ColorCenterPrint(fg: VGA.Color, comptime statement: []const u8) void {
 //     offset: Number of characters from the left border.
 //
 pub fn alignLeft(offset: usize) void {
-    while (vga_instance.cursor % vga_instance.VGA_WIDTH != offset) {
+    while (vga_instance.cursor % VGA.VGA_WIDTH != offset) {
         vga_instance.writeChar(' ');
     }
 }

@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) void {
 
     kernel.setLinkerScriptPath(.{ .path = "src/link.ld" });
 
-    kernel.addAssemblyFile("src/boot/start.s");
+    // kernel.addAssemblyFile("src/boot/start.s");
 
     const multiboot = b.createModule(.{ .source_file = FileSource.relative("src/multiboot/multiboot.zig") });
 
