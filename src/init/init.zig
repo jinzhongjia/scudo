@@ -21,6 +21,8 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
 
     lib.gdt.initialize();
 
+    lib.idt.initialize();
+
     // assembly.sti();
     assembly.hlt();
 }

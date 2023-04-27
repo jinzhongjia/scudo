@@ -11,10 +11,6 @@ var vga_instance = VGA.VGA{};
 pub fn initialize() void {
     VGA.disableCursor();
     vga_instance.clear();
-
-    // var tmp: u8 = 8;
-    // print("number:{d}", .{tmp}); // will errors
-    // print("number:{d}", .{8}); // will run ok
 }
 
 const KWriter = struct {

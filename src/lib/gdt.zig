@@ -2,26 +2,26 @@ const x86 = @import("cpu").x86;
 const tty = @import("tty.zig");
 
 // GDT segment selectors.
-const KERNEL_CODE = 0x08;
-const KERNEL_DATA = 0x10;
-const USER_CODE = 0x18;
-const USER_DATA = 0x20;
-const TSS_DESC = 0x28;
+pub const KERNEL_CODE = 0x08;
+pub const KERNEL_DATA = 0x10;
+pub const USER_CODE = 0x18;
+pub const USER_DATA = 0x20;
+pub const TSS_DESC = 0x28;
 
 // Privilege level of segment selector.
-const KERNEL_RPL = 0b00;
-const USER_RPL = 0b11;
+pub const KERNEL_RPL = 0b00;
+pub const USER_RPL = 0b11;
 
 // Access byte values.
-const KERNEL = 0x90;
-const USER = 0xF0;
-const CODE = 0x0A;
-const DATA = 0x02;
-const TSS_ACCESS = 0x89;
+pub const KERNEL = 0x90;
+pub const USER = 0xF0;
+pub const CODE = 0x0A;
+pub const DATA = 0x02;
+pub const TSS_ACCESS = 0x89;
 
 // Segment flags.
-const PROTECTED = (1 << 2); // 32-bit or 16-bit
-const BLOCKS_4K = (1 << 3);
+pub const BLOCKS_4K = (1 << 3);
+pub const PROTECTED = (1 << 2); // 32-bit or 16-bit
 
 // Structure representing an entry in the GDT.
 // Here we should know packed struct
