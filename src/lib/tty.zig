@@ -12,9 +12,9 @@ pub fn initialize() void {
     VGA.disableCursor();
     vga_instance.clear();
 
-    var tmp: u8 = 8;
-    print("number:{d}", .{tmp}); // will errors
-    print("number:{d}", .{8}); // will run ok
+    // var tmp: u8 = 8;
+    // print("number:{d}", .{tmp}); // will errors
+    // print("number:{d}", .{8}); // will run ok
 }
 
 const KWriter = struct {
@@ -134,4 +134,17 @@ pub fn stepOK() void {
 
     alignRight(ok.len);
     ColorPrint(VGA.Color.LightGreen, ok, .{});
+}
+
+pub fn print_num(num: usize) void {
+    if (num < 10) {
+        vga_instance.writeChar(@intCast(u8, num + 48));
+    } else {
+        print_num(num / 10);
+        vga_instance.writeChar(@intCast(u8, num % 10 + 48));
+    }
+}
+
+pub fn print_str(str: []const u8) void {
+    vga_instance.writeString(str);
 }
