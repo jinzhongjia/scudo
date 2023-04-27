@@ -47,6 +47,13 @@ pub fn build(b: *std.Build) void {
 
     kernel.addModule("cpu", cpu);
 
+    const lib = b.createModule(.{ .source_file = FileSource.relative("src/lib/lib.zig"), .dependencies = &.{.{
+        .name = "cpu",
+        .module = cpu,
+    }} });
+
+    kernel.addModule("lib", lib);
+
     // 此处是默认调用的zig build 也就是install
     //
     // This declares intent for the executable to be installed into the
