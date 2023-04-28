@@ -8,6 +8,8 @@ const MEMINFO: u32 = 1 << 1;
 // that the operating system can also be loaded from).
 pub const BOOT_MAGIC = 0x2BADB002;
 
+pub const MEMORY_AVAILABLE = 1;
+
 pub const Header = extern struct {
     magic: u32 = 0x1BADB002, // Must be equal to header magic number.
     flags: u32 = ALIGN | MEMINFO, // Feature flags.

@@ -47,10 +47,13 @@ pub fn build(b: *std.Build) void {
 
     kernel.addModule("cpu", cpu);
 
-    const lib = b.createModule(.{ .source_file = FileSource.relative("src/lib/lib.zig"), .dependencies = &.{.{
+    const lib = b.createModule(.{ .source_file = FileSource.relative("src/lib/lib.zig"), .dependencies = &.{ .{
         .name = "cpu",
         .module = cpu,
-    }} });
+    }, .{
+        .name = "multiboot",
+        .module = multiboot,
+    } } });
 
     kernel.addModule("lib", lib);
 
