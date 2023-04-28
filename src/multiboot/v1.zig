@@ -112,6 +112,6 @@ pub const module = packed struct {
 };
 
 // check flags
-pub fn check_flag(flags: u32, bit: u8) bool {
-    return (flags) & (1 << (bit));
+pub fn check_flag(flags: u32, bit: u5) bool {
+    return (flags) & (@intCast(u32, 1) << (bit)) != 0;
 }
