@@ -27,6 +27,8 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
 
     lib.pmem.initialize(info);
 
+    lib.vmem.initialize();
+
     // assembly.sti();
     assembly.hlt();
 }

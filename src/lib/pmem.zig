@@ -11,6 +11,7 @@ pub var stack_index: usize = 0; // Index into the stack.
 /// Boundaries of the frame stack.
 // size of stack
 pub var stack_size: usize = undefined;
+pub var stack_end: usize = undefined;
 
 ////
 // Return the amount of variable elements (in bytes).
@@ -90,6 +91,7 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
         }
         stack_size = stack_index + 1;
     }
+    stack_end = @ptrToInt(&stack) + @sizeOf(usize) * STACK_NUM;
 
     tty.stepOK();
 
