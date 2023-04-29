@@ -13,3 +13,5 @@ pub const pmem = @import("pmem.zig");
 pub const vmem = @import("vmem.zig");
 
 pub const mem = @import("mem.zig");
+
+pub const timer = @import("timer.zig");
