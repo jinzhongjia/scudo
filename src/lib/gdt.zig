@@ -39,7 +39,7 @@ const Entry = packed struct {
 // GDT register store the pointer of gdt
 const Register = packed struct {
     limit: u16,
-    base: u32,
+    base: usize,
 };
 
 // Task State Segment.
