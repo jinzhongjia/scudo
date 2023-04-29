@@ -109,41 +109,6 @@ fn makeEntry(base: usize, limit: usize, access: u8, flags: u4) Entry {
     };
 }
 
-////
-// Load the GDT into the system registers (defined in assembly).
-//
-// Arguments:
-//     gdtr: Pointer to the GDTR.
-//
-extern fn loadGDT(gdtr: *const Register) void;
-
-////
-// Load the GDT into the system registers.
-//
-// Arguments:
-//     gdtr: Pointer to the GDTR.
-//
-comptime {
-    asm (
-        \\ .type loadGDT, @function
-        \\ loadGDT:
-        \\     mov +4(%esp), %eax  // Fetch the gdtr parameter.
-        \\     lgdt (%eax)         // Load the new GDT.
-
-        // Reload data segments (GDT entry 2: kernel data).
-        \\     mov $0x10, %ax
-        \\     mov %ax, %ds
-        \\     mov %ax, %es
-        \\     mov %ax, %fs
-        \\     mov %ax, %gs
-        \\     mov %ax, %ss
-
-        // Reload code segment (GDT entry 1: kernel code).
-        \\     ljmp $0x08, $1f
-        \\ 1:  ret
-    );
-}
-
 // Fill in the GDT.
 var gdt align(4) = [_]Entry{
     makeEntry(0, 0, 0, 0),
@@ -194,4 +159,39 @@ pub fn initialize() void {
     x86.assembly.ltr(TSS_DESC);
 
     tty.stepOK();
+}
+
+////
+// Load the GDT into the system registers (defined in assembly).
+//
+// Arguments:
+//     gdtr: Pointer to the GDTR.
+//
+extern fn loadGDT(gdtr: *const Register) void;
+
+////
+// Load the GDT into the system registers.
+//
+// Arguments:
+//     gdtr: Pointer to the GDTR.
+//
+comptime {
+    asm (
+        \\ .type loadGDT, @function
+        \\ loadGDT:
+        \\     mov +4(%esp), %eax  // Fetch the gdtr parameter.
+        \\     lgdt (%eax)         // Load the new GDT.
+
+        // Reload data segments (GDT entry 2: kernel data).
+        \\     mov $0x10, %ax
+        \\     mov %ax, %ds
+        \\     mov %ax, %es
+        \\     mov %ax, %fs
+        \\     mov %ax, %gs
+        \\     mov %ax, %ss
+
+        // Reload code segment (GDT entry 1: kernel code).
+        \\     ljmp $0x08, $1f
+        \\ 1:  ret
+    );
 }

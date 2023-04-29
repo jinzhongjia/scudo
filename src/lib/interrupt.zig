@@ -56,13 +56,9 @@ pub export var context: *volatile Context = undefined;
 fn unhandled() noreturn {
     const n = context.interrupt_n;
     if (n >= IRQ_0) {
-        tty.print_str("unhandled IRQ number ");
-        tty.print_num(n - IRQ_0);
-        tty.print_str("\n");
+        tty.panic("Unhandled IRQ number {d}", .{n - IRQ_0});
     } else {
-        tty.print_str("unhandled exception number ");
-        tty.print_num(n);
-        tty.print_str("\n");
+        tty.panic("Unhandled exception number {d}", .{n});
     }
     x86.assembly.hang();
 }
@@ -92,9 +88,7 @@ export fn interruptDispatch() void {
         SYSCALL => {
             // TODO:syscall
             const syscall_n = context.registers.eax;
-            tty.print_str("A syscall comes, id: ");
-            tty.print_num(syscall_n);
-            tty.print_str("\n");
+            tty.print("A syscall comes, id: {d}", .{syscall_n});
             // const syscall_n = isr.context.registers.eax;
             // if (syscall_n < syscall.handlers.len) {
             //     syscall.handlers[syscall_n]();
@@ -112,7 +106,7 @@ export fn interruptDispatch() void {
     //     x86.sti();
     //     x86.hlt();
     // }
-    tty.panic("here in not handle", .{});
+    tty.panic("Here in not handle!", .{});
     x86.assembly.sti();
     x86.assembly.hlt();
 }

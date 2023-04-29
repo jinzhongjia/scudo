@@ -4,11 +4,26 @@ const Build = std.Build;
 const Target = std.Target;
 const CrossTarget = std.zig.CrossTarget;
 const FileSource = std.build.FileSource;
+const Cpu = Target.Cpu;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    var enabled_features = Cpu.Feature.Set.empty;
+    var disabled_features = Cpu.Feature.Set.empty;
+    const Feature = Target.x86.Feature;
+
+    disabled_features.addFeature(@enumToInt(Feature.x87));
+    disabled_features.addFeature(@enumToInt(Feature.mmx));
+    disabled_features.addFeature(@enumToInt(Feature.sse));
+    disabled_features.addFeature(@enumToInt(Feature.sse2));
+    disabled_features.addFeature(@enumToInt(Feature.avx));
+    disabled_features.addFeature(@enumToInt(Feature.avx2));
+    disabled_features.addFeature(@enumToInt(Feature.avx512f));
+
+    enabled_features.addFeature(@enumToInt(Feature.soft_float));
+
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -19,6 +34,8 @@ pub fn build(b: *std.Build) void {
         // tell compiler the target machine is freestanding
         .os_tag = .freestanding,
         .abi = .gnu,
+        .cpu_features_add = enabled_features,
+        .cpu_features_sub = disabled_features,
     };
 
     // Standard optimization options allow the person running `zig build` to select

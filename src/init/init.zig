@@ -1,10 +1,14 @@
 const std = @import("std");
 const multiboot_v1 = @import("multiboot").v1;
 // const multiboot_v2 = @import("multiboot").v2;
-const assembly = @import("cpu").x86.assembly;
+const cpu = @import("cpu");
+const assembly = cpu.x86.assembly;
 
 const lib = @import("lib");
 
+const tty = lib.tty;
+
+var tmp: u8 = 5;
 // NOTE: assert should be replace with @function panic implemented by us.
 const assert = std.debug.assert;
 

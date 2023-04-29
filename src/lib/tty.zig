@@ -1,4 +1,5 @@
-const fmt = @import("std").fmt;
+const std = @import("std");
+const fmt = std.fmt;
 const VGA = @import("vga.zig");
 
 const x86 = @import("cpu").x86;
@@ -13,27 +14,39 @@ pub fn initialize() void {
     vga_instance.clear();
 }
 
-const KWriter = struct {
-    pub const Error = error{};
-
-    const Self = @This();
-
-    pub fn writeAll(_: Self, string: []const u8) Error!void {
-        vga_instance.writeString(string);
-    }
-
-    pub fn writeByteNTimes(_: Self, byte: u8, n: usize) Error!void {
-        var times: usize = n;
-        while (times > 0) {
-            vga_instance.writeChar(byte);
-            times = times - 1;
+const KWriter = std.io.Writer(
+    void,
+    error{},
+    struct {
+        fn writeFn(_: void, bytes: []const u8) !usize {
+            vga_instance.writeString(bytes);
+            return bytes.len;
         }
-    }
-};
+    }.writeFn,
+);
 
+////
+// Print a string.
+//
+// Arguments:
+//     format: Format string.
+//     args: Parameters for format specifiers.
+//
 pub fn print(comptime format: []const u8, args: anytype) void {
-    const writer: KWriter = .{};
+    const writer: KWriter = .{ .context = {} };
     fmt.format(writer, format, args) catch panic("failed to print, something is wrong", .{});
+}
+
+////
+// Print a string.
+//
+// Arguments:
+//     format: Format string.
+//     args: Parameters for format specifiers.
+//
+pub fn println(comptime format: []const u8, args: anytype) void {
+    const writer: KWriter = .{ .context = {} };
+    fmt.format(writer, format ++ "\n", args) catch panic("failed to println, something is wrong", .{});
 }
 
 ////
@@ -130,17 +143,4 @@ pub fn stepOK() void {
 
     alignRight(ok.len);
     ColorPrint(VGA.Color.LightGreen, ok, .{});
-}
-
-pub fn print_num(num: usize) void {
-    if (num < 10) {
-        vga_instance.writeChar(@intCast(u8, num + 48));
-    } else {
-        print_num(num / 10);
-        vga_instance.writeChar(@intCast(u8, num % 10 + 48));
-    }
-}
-
-pub fn print_str(str: []const u8) void {
-    vga_instance.writeString(str);
 }

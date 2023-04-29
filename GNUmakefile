@@ -23,6 +23,10 @@ bochs-grub: grub
 run: kernel
 	qemu-system-i386 -kernel zig-out/bin/zos -m 4G
 
+.PHONY: debug
+debug: kernel
+	qemu-system-i386 -kernel zig-out/bin/zos -m 4G -d in_asm,int
+
 limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v4.x-branch-binary --depth=1
 	$(MAKE) -C limine
