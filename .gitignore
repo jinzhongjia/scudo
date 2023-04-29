@@ -3,3 +3,5 @@ run/iso/boot/zos
 run/zos.iso
 zig-out
 bx_enh_dbg.ini
+limine
+zos.iso
