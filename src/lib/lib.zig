@@ -11,3 +11,5 @@ pub const idt = @import("idt.zig");
 pub const pmem = @import("pmem.zig");
 
 pub const vmem = @import("vmem.zig");
+
+pub const mem = @import("mem.zig");

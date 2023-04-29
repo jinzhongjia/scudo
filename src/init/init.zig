@@ -29,6 +29,8 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
 
     lib.vmem.initialize();
 
+    lib.mem.initialize(10240);
+
     // assembly.sti();
     assembly.hlt();
 }

@@ -134,7 +134,7 @@ pub fn unmap(v_addr: usize) void {
 //
 pub fn mapZone(v_addr: usize, p_addr: ?usize, size: usize, flags: u32) void {
     var i: usize = 0;
-    while (i < size) : (i += x86.PAGE_SIZE) {
+    while (i < size) : (i += x86.constant.PAGE_SIZE) {
         map(v_addr + i, if (p_addr) |p| p + i else null, flags);
     }
 }

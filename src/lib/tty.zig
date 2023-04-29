@@ -6,6 +6,8 @@ const x86 = @import("cpu").x86;
 
 var vga_instance = VGA.VGA{};
 
+pub const Color = VGA.Color;
+
 ////
 // Initialize the terminal.
 //

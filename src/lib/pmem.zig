@@ -93,8 +93,7 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
     }
     stack_end = @ptrToInt(&stack) + @sizeOf(usize) * STACK_NUM;
 
-    tty.stepOK();
+    tty.ColorPrint(tty.Color.White, " {d}MB", .{available() / 1024 / 1024});
 
-    // print some info for the memory
-    tty.println("memory is {d}MB", .{available() / 1024 / 1024});
+    tty.stepOK();
 }
