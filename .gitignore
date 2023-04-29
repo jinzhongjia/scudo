@@ -5,3 +5,4 @@ zig-out
 bx_enh_dbg.ini
 limine
 zos.iso
+grub-zos.iso
