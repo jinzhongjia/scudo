@@ -161,7 +161,7 @@ pub fn unmapZone(v_addr: usize, size: usize) void {
 //
 fn zeroPageTable(page_table: [*]PageEntry) void {
     const pt = @ptrCast([*]u8, page_table);
-    @memset(pt, 0, x86.constant.PAGE_SIZE);
+    @memset(pt[0 .. x86.constant.PAGE_SIZE / @sizeOf(u8)], 0);
 }
 
 ////
