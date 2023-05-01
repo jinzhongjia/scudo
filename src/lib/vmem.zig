@@ -187,10 +187,10 @@ fn pageFault() void {
     tty.panic(
         \\page fault
         \\  address:    0x{X}
-        \\  error:      {any}
-        \\  operation:  {any}
-        \\  privilege:  {any}
-    , .{ address, err, operation, privilege });
+        \\  error:      {s}
+        \\  operation:  {s}
+        \\  privilege:  {s}
+    , .{ address, err[0..err.len], operation[0..operation.len], privilege[0..privilege.len] });
 }
 
 ////

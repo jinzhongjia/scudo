@@ -85,7 +85,7 @@ const TSS = packed struct {
     // why this ?
     // SSP is introduced by intel at the hardware level to enhance security,
     // not all platforms support it
-    ssp: u32 = 0,
+    // ssp: u32 = 0,
 };
 
 ////

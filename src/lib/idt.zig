@@ -7,15 +7,6 @@ const interrupt = @import("interrupt.zig");
 const INTERRUPT_GATE = 0x8E;
 const SYSCALL_GATE = 0xEE;
 
-// Interrupt Descriptor Table.
-var idt: [256]Entry = undefined;
-
-// IDT descriptor register pointing at the IDT.
-var idtr = Register{
-    .limit = @intCast(u16, @sizeOf(@TypeOf(idt))),
-    .base = undefined,
-};
-
 // Structure representing an entry in the IDT.
 const Entry = packed struct {
     isr_low: u16, // The lower 16 bits of the ISR's address
@@ -29,6 +20,15 @@ const Entry = packed struct {
 const Register = packed struct {
     limit: u16,
     base: usize,
+};
+
+// Interrupt Descriptor Table.
+var idt: [256]Entry = undefined;
+
+// IDT descriptor register pointing at the IDT.
+var idtr = Register{
+    .limit = @intCast(u16, @sizeOf(@TypeOf(idt))),
+    .base = undefined,
 };
 
 ////

@@ -11,9 +11,4 @@ pub fn initialize() void {
     tty.stepOK();
 }
 
-// var tmp: usize = 0;
-//
-// fn gogo() void {
-//     tmp += 1;
-//     tty.println("scheduler: {d}", .{tmp});
-// }
+
