@@ -25,7 +25,7 @@ run: kernel
 
 .PHONY: debug
 debug: kernel
-	qemu-system-i386 -kernel zig-out/bin/zos -m 4G -d in_asm,int
+	qemu-system-i386 -kernel zig-out/bin/zos -m 4G -d in_asm,int -s -S  -append "nokaslr console=ttyS0"
 
 limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v4.x-branch-binary --depth=1
