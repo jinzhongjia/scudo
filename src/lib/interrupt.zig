@@ -106,9 +106,9 @@ export fn interruptDispatch() void {
     //     x86.sti();
     //     x86.hlt();
     // }
-    tty.panic("Here in not handle!", .{});
-    x86.assembly.sti();
-    x86.assembly.hlt();
+    // tty.panic("Here in not handle!", .{});
+    // x86.assembly.sti();
+    // x86.assembly.hlt();
 }
 
 ////
@@ -191,7 +191,7 @@ pub fn register(n: u8, handler: *const fn () void) void {
 //     irq: Index of the IRQ.
 //     handler: IRQ handler.
 //
-pub fn registerIRQ(irq: u8, handler: fn () void) void {
+pub fn registerIRQ(irq: u8, handler: *const fn () void) void {
     register(IRQ_0 + irq, handler);
     maskIRQ(irq, false); // Unmask the IRQ.
 }
