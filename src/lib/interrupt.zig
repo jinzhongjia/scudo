@@ -326,14 +326,14 @@ comptime {
         \\ isrCommon:
         \\     pusha  // Save the registers state.
         \\ 
-        \\     // Setup kernel data segment.
-        \\     mov $KERNEL_DS, %ax
-        \\     mov %ax, %ds
-        \\     mov %ax, %es
+        // \\     // Setup kernel data segment.
+        // \\     mov $KERNEL_DS, %ax
+        // \\     mov %ax, %ds
+        // \\     mov %ax, %es
         \\ 
         \\     // Save the pointer to the current context and switch to the kernel stack.
         \\     mov %esp, context
-        \\     mov $KERNEL_STACK, %esp
+        // \\     mov $KERNEL_STACK, %esp
         \\ 
         \\     call interruptDispatch  // Handle the interrupt event.
         \\ 
@@ -341,9 +341,9 @@ comptime {
         \\     mov context, %esp
         \\ 
         \\     // Setup user data segment.
-        \\     mov $USER_DS, %ax
-        \\     mov %ax, %ds
-        \\     mov %ax, %es
+        // \\     mov $USER_DS, %ax
+        // \\     mov %ax, %ds
+        // \\     mov %ax, %es
         \\ 
         \\     popa          // Restore the registers state.
         \\     add $8, %esp  // Remove interrupt number and error code from stack.
