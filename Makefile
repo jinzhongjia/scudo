@@ -24,7 +24,7 @@ run: kernel
 	qemu-system-i386 -kernel zig-out/bin/zos -m 4G
 
 .PHONY: debug
-debug: kernel
+debug:
 	qemu-system-i386 -kernel zig-out/bin/zos -m 4G -d in_asm,int -s -S  -append "nokaslr console=ttyS0"
 
 limine:
