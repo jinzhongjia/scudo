@@ -33,8 +33,6 @@ pub fn initialize(hz: u32) void {
     x86.assembly.outb(PIT_CH_0, @truncate(u8, divisor));
     x86.assembly.outb(PIT_CH_0, @truncate(u8, divisor >> 8));
 
-    registerHandler(gogo);
-
     tty.stepOK();
 }
 
@@ -43,12 +41,4 @@ pub fn initialize(hz: u32) void {
 //
 pub fn registerHandler(handler: *const fn () void) void {
     interrupt.registerIRQ(0, handler);
-}
-
-var tmp: usize = 0;
-
-fn gogo() void {
-    tty.println("scheduler: {d}", .{tmp});
-    // tty.println("ceshi", .{});
-    tmp += 1;
 }

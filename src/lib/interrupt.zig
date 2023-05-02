@@ -325,20 +325,32 @@ comptime {
         \\ // Common code for all Interrupt Service Routines.
         \\ isrCommon:
         \\     pusha  // Save the registers state.
+        \\     mov %esp, context
+        \\
+        \\     mov %ds,%eax
+        \\     pushl %eax
         \\ 
         // \\     // Setup kernel data segment.
-        // \\     mov $KERNEL_DS, %ax
-        // \\     mov %ax, %ds
-        // \\     mov %ax, %es
+        \\     mov $KERNEL_DS, %ax
+        \\     mov %ax, %ds
+        \\     mov %ax, %es
+        \\     mov %ax, %fs
+        \\     mov %ax, %gs
+        \\     mov %ax, %ss
         \\ 
         \\     // Save the pointer to the current context and switch to the kernel stack.
-        \\     mov %esp, context
         // \\     mov $KERNEL_STACK, %esp
         \\ 
         \\     call interruptDispatch  // Handle the interrupt event.
         \\ 
         \\     // Restore the pointer to the context (of a different thread, potentially).
-        \\     mov context, %esp
+        // \\     mov context, %esp
+        \\     pop %eax      
+        \\     mov %eax, %ds
+        \\     mov %eax, %es
+        \\     mov %eax, %fs
+        \\     mov %eax, %gs
+        \\     mov %eax, %ss
         \\ 
         \\     // Setup user data segment.
         // \\     mov $USER_DS, %ax
