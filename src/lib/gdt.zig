@@ -121,7 +121,8 @@ var gdt align(4) = [_]Entry{
 
 // GDT descriptor register pointing at the GDT.
 var gdtr: Register = Register{
-    .limit = @sizeOf(@TypeOf(gdt)),
+    .limit = @sizeOf(@TypeOf(gdt)) - 1,
+    // because the maximum value of Size is 65535, while the GDT can be up to 65536 bytes in length (8192 entries). Further, no GDT can have a size of 0 bytes.
     // base must be assigned  at runtime
     .base = undefined,
 };
@@ -154,7 +155,7 @@ pub fn initialize() void {
     loadGDT(&gdtr);
 
     // Initialize TSS.
-    const tss_entry = makeEntry(@ptrToInt(&tss), @sizeOf(TSS) - 1, TSS_ACCESS, PROTECTED);
+    const tss_entry = makeEntry(@ptrToInt(&tss), @sizeOf(TSS) - 1, TSS_ACCESS, 0);
     gdt[TSS_DESC / @sizeOf(Entry)] = tss_entry;
     x86.assembly.ltr(TSS_DESC);
 

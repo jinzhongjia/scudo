@@ -27,7 +27,7 @@ var idt: [256]Entry = undefined;
 
 // IDT descriptor register pointing at the IDT.
 var idtr = Register{
-    .limit = @intCast(u16, @sizeOf(@TypeOf(idt))),
+    .limit = @intCast(u16, @sizeOf(@TypeOf(idt)) - 1),
     .base = undefined,
 };
 
