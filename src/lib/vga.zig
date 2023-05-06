@@ -67,7 +67,7 @@ pub const VGA = struct {
     // Clear the screen.
     //
     pub fn clear(self: *VGA) void {
-        mem.set(Entry, self.vram[0..VGA_SIZE], self.entry(' '));
+        @memset(self.vram[0..VGA_SIZE], self.entry(' '));
 
         self.cursor = 0;
         self.updateCursor();
@@ -136,8 +136,10 @@ pub const VGA = struct {
 
         // Copy all the screen (apart from the first line) up one line.
         mem.copy(Entry, self.vram[0..last], self.vram[first..VGA_SIZE]);
+        // because the memory regions must be not overlap, wo we can't use this.
+        // @memcpy(self.vram[0..last], self.vram[first..VGA_SIZE]);
         // Clean the last line.
-        mem.set(Entry, self.vram[last..VGA_SIZE], self.entry(' '));
+        @memset(self.vram[last..VGA_SIZE], self.entry(' '));
 
         // Bring the cursor back to the beginning of the last line.
         self.cursor -= VGA_WIDTH;
