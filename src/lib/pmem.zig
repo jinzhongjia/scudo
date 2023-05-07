@@ -5,7 +5,7 @@ const tty = @import("tty.zig");
 
 const STACK_NUM = 1024 * 1024;
 
-pub var stack: [STACK_NUM]usize = [_]usize{0} ** STACK_NUM; // Stack of free physical page.
+var stack: [*]usize = undefined;
 pub var stack_index: usize = 0; // Index into the stack.
 
 /// Boundaries of the frame stack.
@@ -60,9 +60,14 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
         tty.panic("Mmap not enable!", .{});
     }
 
-    // if (!multiboot_v1.check_flag(info.flags, 3)) {
-    //     tty.panic("mods not enable!", .{});
-    // }
+    if (!multiboot_v1.check_flag(info.flags, 3)) {
+        tty.panic("mods not enable!", .{});
+    }
+
+    // Get the stack addr
+    var stack_addr = x86.constant.pageBase(info.lastModuleEnd());
+    stack = @intToPtr([*]usize, stack_addr);
+    stack_end = stack_addr + 1;
 
     // Place the stack of free pages after the last Multiboot module.
     {
@@ -75,21 +80,21 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
             var start = @truncate(usize, entry.addr);
             var end = @truncate(usize, start + entry.len);
 
+            // Anything that comes before the end of the stack of free pages is reserved.
+            start = if (start >= stack_end) start else stack_end;
+
             // Flag all the pages in this memory area as free.
             if (entry.type == multiboot_v1.MEMORY_AVAILABLE) {
                 while (start < end) : (start += x86.constant.PAGE_SIZE) {
                     // When the When the machine memory is greater than 4G, a panic error is given
-                    if (stack_index == STACK_NUM - 1) {
-                        tty.panic("Memory map is not enough!\nBecause you machine memory is larger than 4G!", .{});
-                    }
                     free(start);
+                    stack_end += x86.constant.PAGE_SIZE;
                 }
             }
 
             // Go to the next entry in the memory map.
             map += entry.size + @sizeOf(@TypeOf(entry.size));
         }
-        stack_size = stack_index + 1;
     }
     stack_end = @ptrToInt(&stack) + @sizeOf(usize) * STACK_NUM;
 

@@ -35,7 +35,7 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
 
     lib.scheduler.initialize();
 
-    // assembly.sti();
+    assembly.sti();
     assembly.hlt();
 }
 
