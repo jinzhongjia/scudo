@@ -1,4 +1,5 @@
 const tty = @import("tty.zig");
+const syscall = @import("syscall.zig");
 const x86 = @import("cpu").x86;
 // some declare about PIC 8259
 // About more, you can see these:
@@ -88,16 +89,18 @@ export fn interruptDispatch() void {
         SYSCALL => {
             // TODO:syscall
             const syscall_n = context.registers.eax;
-            tty.print("A syscall comes, id: {d}", .{syscall_n});
+            // tty.print("A syscall comes, id: {d}", .{syscall_n});
             // const syscall_n = isr.context.registers.eax;
-            // if (syscall_n < syscall.handlers.len) {
-            //     syscall.handlers[syscall_n]();
-            // } else {
-            //     syscall.invalid();
-            // }
+            if (syscall_n < syscall.handlers.len) {
+                syscall.handlers[syscall_n]();
+            } else {
+                syscall.invalid();
+            }
         },
 
-        else => unreachable,
+        else => {
+            tty.panic("sorry, meet unknown interrupt id", .{});
+        },
     }
 
     // TODO:this is when no thread to run

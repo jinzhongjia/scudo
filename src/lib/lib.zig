@@ -23,3 +23,5 @@ pub const elf = @import("elf.zig");
 pub const process = @import("process.zig");
 
 pub const thread = @import("thread.zig");
+
+pub const syscall = @import("syscall.zig");

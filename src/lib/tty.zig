@@ -68,7 +68,7 @@ pub fn ColorPrint(fg: VGA.Color, comptime format: []const u8, args: anytype) voi
     vga_instance.foreground = save_foreground;
 }
 
-pub fn panic(comptime format: []const u8, args: anytype) void {
+pub fn panic(comptime format: []const u8, args: anytype) noreturn {
     // We may be interrupting user mode, so we disable the hardware cursor
     // and fetch its current position, and start writing from there.
     VGA.disableCursor();
