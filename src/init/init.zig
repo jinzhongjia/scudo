@@ -36,6 +36,15 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
     lib.scheduler.initialize();
 
     assembly.sti();
+    // var kk = lib.mem.allocator.alloc(u32, 1) catch {
+    //     tty.panic("55", .{});
+    // };
+    //
+    // var tt = @ptrCast(*u32, kk);
+    // tt.* = 12;
+    // tty.println("{d}", .{tt.*});
+    //
+    // lib.mem.allocator.free(kk);
     assembly.hlt();
 }
 

@@ -9,6 +9,7 @@ const Thread = @import("thread.zig").Thread;
 const ThreadQueue = @import("thread.zig").ThreadQueue;
 
 pub var current_process: *Process = undefined; // The process that is currently executing.
+pub var current_thread: *Thread = undefined;
 var ready_queue: ThreadQueue = undefined; // Queue of threads ready for execution.
 
 ////
@@ -31,8 +32,7 @@ fn schedule() void {
 
     if (ready_queue.popFirst()) |next| {
         ready_queue.append(next);
-        const next_thread = @fieldParentPtr(Thread, "queue_link", next);
-        contextSwitch(next_thread);
+        contextSwitch(&next.data);
     }
 }
 
@@ -58,7 +58,7 @@ fn contextSwitch(thread: *Thread) void {
 //
 pub fn switchProcess(process: *Process) void {
     if (current_process != process) {
-        x86.assembly.writeCR3(process.page_directory);
+        // x86.assembly.writeCR3(process.page_directory);
         current_process = process;
     }
 }
@@ -71,7 +71,7 @@ pub fn switchProcess(process: *Process) void {
 //     new_thread: The thread to be added.
 //
 pub fn new(new_thread: *Thread) void {
-    ready_queue.append(&new_thread.queue_link);
+    ready_queue.append(new_thread);
     contextSwitch(new_thread);
 }
 
@@ -86,10 +86,10 @@ pub fn enqueue(thread: *Thread) void {
     // Last element in the queue is the thread currently being executed.
     // So put this thread in the second to last position.
     if (ready_queue.last) |last| {
-        ready_queue.insertBefore(last, &thread.queue_link);
+        ready_queue.insertBefore(last, &thread);
     } else {
         // If the queue is empty, simply insert the thread.
-        ready_queue.prepend(&thread.queue_link);
+        ready_queue.prepend(&thread);
     }
 }
 
@@ -102,7 +102,7 @@ pub fn enqueue(thread: *Thread) void {
 pub fn dequeue() ?*Thread {
     const thread = ready_queue.pop() orelse return null;
     schedule();
-    return @fieldParentPtr(Thread, "queue_link", thread);
+    return thread.data;
 }
 
 ////
@@ -115,7 +115,7 @@ pub fn remove(thread: *Thread) void {
     if (thread == current().?) {
         _ = dequeue();
     } else {
-        ready_queue.remove(&thread.queue_link);
+        ready_queue.remove(&thread);
     }
 }
 
@@ -124,5 +124,5 @@ pub fn remove(thread: *Thread) void {
 //
 pub inline fn current() ?*Thread {
     const last = ready_queue.last orelse return null;
-    return @fieldParentPtr(Thread, "queue_link", last);
+    return last.data;
 }
