@@ -8,9 +8,14 @@ const x86 = cpu.x86;
 
 // Standard allocator interface.
 pub var allocator = mem.Allocator{
-    .allocFn = alloc,
-    .reallocFn = realloc,
-    .freeFn = free,
+    .ptr = undefined,
+    .vtable = &vtable,
+};
+
+var vtable = mem.Allocator.VTable{
+    .free = free,
+    .alloc = alloc,
+    .resize = resize,
 };
 
 var heap: []u8 = undefined; // Global kernel heap.
@@ -35,7 +40,7 @@ pub const Block = struct {
     // Returns:
     //     The size of the usable portion of the block.
     //
-    pub fn size(self: Self) usize {
+    pub fn size(self: *Self) usize {
         // Block can end at the beginning of the next block, or at the end of the heap.
         const end = if (self.next) |next_block| @ptrToInt(next_block) else @ptrToInt(heap.ptr) + heap.len;
         // End - Beginning - Metadata = the usable amount of memory.
@@ -45,8 +50,8 @@ pub const Block = struct {
     ////
     // Return a slice of the usable portion of the block.
     //
-    pub fn data(self: *Block) []u8 {
-        return @intToPtr([*]u8, @ptrToInt(self) + @sizeOf(Block))[0..self.size()];
+    pub fn data(self: *Block) [*]u8 {
+        return @intToPtr([*]u8, @ptrToInt(self) + @sizeOf(Block));
     }
 
     ////
@@ -64,23 +69,26 @@ pub const Block = struct {
 };
 
 // Implement standard alloc function - see std.mem for reference.
-fn alloc(_: *mem.Allocator, size: usize, _: u29) ![]u8 {
+fn alloc(_: *anyopaque, size: usize, _: u8, _: usize) ?[*]u8 {
     // TODO: align properly.
 
     // Find a block that's big enough.
-    var block = searchFreeBlock(size) orelse return error.OutOfMemory;
+    if (searchFreeBlock(size)) |block| {
+        // If it's bigger than needed, split it.
+        if (block.size() > size + @sizeOf(Block)) {
+            splitBlock(block, size);
+        }
+        occupyBlock(block); // Remove the block from the free list.
 
-    // If it's bigger than needed, split it.
-    if (block.size() > size + @sizeOf(Block)) {
-        splitBlock(block, size);
+        // var alloc_mem = block.data()[0..size];
+        // _ = alloc_mem;
+        return block.data();
     }
-    occupyBlock(block); // Remove the block from the free list.
-
-    return block.data()[0..size];
+    return null;
 }
 
 // Implement standard realloc function - see std.mem for reference.
-fn realloc(self: *mem.Allocator, old_mem: []u8, new_size: usize, alignment: u29) ![]u8 {
+fn resize(_: *anyopaque, old_mem: []u8, _: u8, new_size: usize, _: usize) bool {
     // Try to increase the size of the current block.
     var block = Block.fromData(old_mem.ptr);
     mergeRight(block);
@@ -91,19 +99,13 @@ fn realloc(self: *mem.Allocator, old_mem: []u8, new_size: usize, alignment: u29)
         if (block.size() >= new_size + @sizeOf(Block)) {
             splitBlock(block, new_size);
         }
-        return old_mem; // We can return the old pointer.
+        return true; // We can return the old pointer.
     }
-
-    // If the enlargement failed:
-    free(self, old_mem); // Free the current block.
-    var new_mem = try alloc(self, new_size, alignment); // Allocate a bigger one.
-    // Copy the data in the new location.
-    mem.copy(u8, new_mem, old_mem); // FIXME: this should be @memmove.
-    return new_mem;
+    return false;
 }
 
 // Implement standard free function - see std.mem for reference.
-fn free(_: *mem.Allocator, old_mem: []u8) void {
+fn free(_: *anyopaque, old_mem: []u8, _: u8, _: usize) void {
     var block = Block.fromData(old_mem.ptr);
 
     freeBlock(block); // Reinsert the block in the free list.
@@ -178,6 +180,11 @@ fn occupyBlock(block: *Block) void {
     block.free = false;
 }
 
+fn unsafeIntToPtr(comptime Ptr: type, int: anytype) Ptr {
+  @setRuntimeSafety(false);
+  return @intToPtr(Ptr, int);
+}
+
 ////
 // Reduce the size of a block by splitting it in two. The second part is
 // marked free. The first part can be either free or busy (depending on
@@ -191,11 +198,14 @@ fn splitBlock(block: *Block, left_sz: usize) void {
 
     if (block.size() - left_sz <= @sizeOf(Block)) {
         // TODO: this panic should be changed!
-        tty.panic("split block error", .{});
+        tty.panic("split block error, block is small", .{});
     }
 
     // Setup the second block at the end of the first one.
-    var right_block = @intToPtr(*Block, @ptrToInt(block) + @sizeOf(Block) + left_sz);
+    var tmp = @ptrToInt(block) + @sizeOf(Block) + left_sz;
+    // tty.println("{x}", .{tmp});
+    var right_block = unsafeIntToPtr(*Block, tmp);
+
     right_block.* = Block{
         .free = false, // For consistency: not free until added to the free list.
         .prev = block,
@@ -203,6 +213,11 @@ fn splitBlock(block: *Block, left_sz: usize) void {
         .prev_free = null,
         .next_free = null,
     };
+    // right_block.*.free = false;
+    // right_block.*.prev = block;
+    // right_block.*.next = block.next;
+    // right_block.*.next_free = null;
+    // right_block.*.prev_free = null;
     block.next = right_block;
 
     // Update the block that comes after.
