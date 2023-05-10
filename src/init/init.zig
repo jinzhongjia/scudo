@@ -35,6 +35,7 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
     //
     // lib.scheduler.initialize();
 
+    lib.keyboard.initialize();
     assembly.sti();
     // var kk = lib.mem.allocator.alloc(u32, 1) catch {
     //     tty.panic("55", .{});

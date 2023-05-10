@@ -40,6 +40,7 @@ pub const Entry = packed struct {
 
 // VGA status.
 pub const VGA = struct {
+    const Self = @This();
     vram: *[VRAM_SIZE / @sizeOf(Entry)]Entry = @intToPtr([*]Entry, VRAM_ADDR)[0 .. VRAM_SIZE / @sizeOf(Entry)],
     cursor: usize = 0,
     foreground: Color = Color.LightGrey,
@@ -66,7 +67,7 @@ pub const VGA = struct {
     ////
     // Clear the screen.
     //
-    pub fn clear(self: *VGA) void {
+    pub fn clear(self: *Self) void {
         @memset(self.vram[0..VGA_SIZE], self.entry(' '));
 
         self.cursor = 0;
@@ -79,7 +80,7 @@ pub const VGA = struct {
     // Arguments:
     //     char: Character to be printed.
     //
-    pub fn writeChar(self: *VGA, char: u8) void {
+    pub fn writeChar(self: *Self, char: u8) void {
         if (self.cursor == VGA_WIDTH * VGA_HEIGHT - 1) {
             self.scrollDown();
         }
@@ -101,6 +102,9 @@ pub const VGA = struct {
             // Notice: here is hardcoded
             // FIXME: hardcoded 8 here is horrible.
             8 => {
+                if (self.cursor < 1) {
+                    return;
+                }
                 self.cursor -= 1;
                 self.writeChar(' ');
                 self.cursor -= 1;

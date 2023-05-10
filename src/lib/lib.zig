@@ -14,6 +14,8 @@ pub const vmem = @import("vmem.zig");
 
 pub const mem = @import("mem.zig");
 
+pub const keyboard = @import("keyboard.zig");
+
 // pub const timer = @import("timer.zig");
 //
 // pub const scheduler = @import("scheduler.zig");

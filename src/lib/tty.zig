@@ -4,7 +4,7 @@ const VGA = @import("vga.zig");
 
 const x86 = @import("cpu").x86;
 
-var vga_instance = VGA.VGA{};
+pub var vga_instance = VGA.VGA{};
 
 pub const Color = VGA.Color;
 
@@ -13,6 +13,10 @@ pub const Color = VGA.Color;
 //
 pub fn initialize() void {
     VGA.disableCursor();
+    vga_instance.clear();
+}
+
+pub fn clear() void {
     vga_instance.clear();
 }
 
@@ -47,8 +51,11 @@ pub fn print(comptime format: []const u8, args: anytype) void {
 //     args: Parameters for format specifiers.
 //
 pub fn println(comptime format: []const u8, args: anytype) void {
-    const writer: KWriter = .{ .context = {} };
-    fmt.format(writer, format ++ "\n", args) catch panic("failed to println, something is wrong", .{});
+    print(format ++ "\n", args);
+}
+
+pub fn br() void {
+    print("\n", .{});
 }
 
 ////

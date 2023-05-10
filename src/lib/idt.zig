@@ -67,32 +67,10 @@ pub fn initialize() void {
     // reload the idt
     x86.assembly.lidt(@ptrToInt(&idtr));
 
-    interrupt.registerIRQ(1, gogo);
-
     tty.stepOK();
 }
 
-fn gogo() void {
-    const scancodes = [_]u8{
-        0,    27,  '1', '2', '3', '4', '5', '6', '7', '8', '9',  '0', '-', '=',  8,
-        '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',  '[', ']', '\n', 0,
-        'a',  's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0,   '\\', 'z',
-        'x',  'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,   '*',  0,   ' ', 0,    0,
-        0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,    '-',
-        0,    0,   0,   '+', 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,    0,
-    };
-    // Check whether there's data in the keyboard buffer.
-    const status = x86.assembly.inb(0x64);
-    if ((status & 1) == 0) return;
 
-    // Fetch the scancode, and ignore key releases.
-    const code = x86.assembly.inb(0x60);
-    if ((code & 0x80) != 0) return;
-
-    // Fetch the character associated with the keypress.
-    const char = scancodes[code];
-    tty.print("{s}", .{[1]u8{char}});
-}
 
 ////
 // Install the Interrupt Service Routines in the IDT.
