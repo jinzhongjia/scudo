@@ -47,8 +47,7 @@ pub const Process = struct {
         // ...so that we can extract the ELF inside it...
         const entry_point = elf.load(elf_addr);
         // ...and start executing it.
-        const main_thread = createThread(entry_point);
-        _ = main_thread;
+        _ = createThread(entry_point);
         // insertArguments(main_thread, args orelse [][]const u8{});
 
         return process;
@@ -61,13 +60,11 @@ pub const Process = struct {
         if (scheduler.current_process != self) {
             tty.panic("destroy process failed", .{});
         }
-        // Deallocate all of user space.
-        // vmem.destroyAddressSpace();
 
         {
             var node = self.threads.popOrNull();
             while (node == null) {
-                node.?.destroy();
+                node.?
             }
         }
         mem.allocator.destroy(self);
@@ -83,10 +80,10 @@ pub const Process = struct {
     //    The TID of the new thread.
     //
     pub fn createThread(self: *Process, entry_point: usize) *Thread {
-        const thread_tmp = Thread.init(self, self.next_local_tid, entry_point);
+        var thread_tmp = Thread.init(self, self.next_local_tid, entry_point);
 
         // TODO fix
-        self.threads.append(&thread_tmp);
+        self.threads.append(thread_tmp.*);
         self.next_local_tid += 1;
 
         // Add the thread to the scheduling queue.

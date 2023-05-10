@@ -19,12 +19,12 @@ const STACK_SIZE = x86.constant.PAGE_SIZE; // Size of thread stacks.
 
 // List of threads inside a process.
 // TODO
-pub const ThreadList = Array(Thread);
+pub const ThreadList = Array(*Thread);
 // Queue of threads (for scheduler and mailboxes).
-pub const ThreadQueue = Queue(Thread);
+pub const ThreadQueue = Queue(*Thread);
 
 // Keep track of all the threads.
-var threads = Array(?*Thread).init(&mem.allocator);
+var all_threads = Array(?*Thread).init(&mem.allocator);
 
 pub const Thread = struct {
     context: interrupt.Context,
@@ -36,6 +36,7 @@ pub const Thread = struct {
     message_destination: *ipc.Message, // Address where to deliver messages.
     mailbox: Mailbox, // Private thread mailbox.
 
+    node: *ThreadQueue.Node,
     ////
     // Create a new thread inside the current process.
     // NOTE: Do not call this function directly. Use Process.createThread instead.
@@ -52,19 +53,26 @@ pub const Thread = struct {
         }
 
         // Allocate and initialize the thread structure.
-        const thread = mem.allocator.createOne(Thread) catch unreachable;
+        const thread = mem.allocator.create(Thread) catch {
+            tty.panic("error", .{});
+        };
+
         thread.* = Thread{
             .context = initContext(entry_point),
             .process = process,
             .local_tid = local_tid,
-            .tid = @intCast(u16, threads.len),
+            .tid = @intCast(u16, all_threads.len),
             // .process_link = ThreadList.Node.init({}),
             // .queue_link = ThreadQueue.Node.init({}),
             .mailbox = Mailbox{},
             .message_destination = undefined,
+            .node = mem.allocator.create(ThreadQueue.Node) catch {
+                tty.panic("error", .{});
+            },
         };
-        threads.append(@ptrCast(?*Thread, thread)) catch unreachable;
-        // TODO: simplify once #836 is solved.
+        all_threads.append(@ptrCast(?*Thread, thread)) catch {
+            tty.panic("error", .{});
+        };
 
         return thread;
     }
@@ -80,7 +88,7 @@ pub const Thread = struct {
 
         // Get the thread off the process and scheduler, and deallocate its structure.
         self.process.removeThread(self);
-        threads.items[self.tid] = null;
+        all_threads.items[self.tid] = null;
         mem.allocator.destroy(self);
 
         // TODO: get the thread off IPC waiting queues.
@@ -97,7 +105,7 @@ pub const Thread = struct {
 //     Pointer to the thread, null if non-existent.
 //
 pub fn get(tid: u16) ?*Thread {
-    return threads.items[tid];
+    return all_threads.items[tid];
 }
 
 ////

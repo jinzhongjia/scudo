@@ -120,7 +120,7 @@ pub fn remove(thread: *Thread) void {
     if (thread == current().?) {
         _ = dequeue();
     } else {
-        ready_queue.remove(&thread);
+        ready_queue.remove(thread.node);
     }
 }
 
