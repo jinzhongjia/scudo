@@ -1,7 +1,7 @@
 const tty = @import("tty.zig");
-const syscall = @import("syscall.zig");
-const scheduler = @import("scheduler.zig");
-const ipc = @import("ipc.zig");
+// const syscall = @import("syscall.zig");
+// const scheduler = @import("scheduler.zig");
+// const ipc = @import("ipc.zig");
 const x86 = @import("cpu").x86;
 // some declare about PIC 8259
 // About more, you can see these:
@@ -21,7 +21,7 @@ const PIC1_DATA = 0x21;
 const PIC2_CMD = 0xA0;
 const PIC2_DATA = 0xA1;
 
-var irq_subscribers = [_]ipc.MailboxId{ipc.MailboxId.Kernel} ** 16;
+// var irq_subscribers = [_]ipc.MailboxId{ipc.MailboxId.Kernel} ** 16;
 
 // PIC command.
 // This is issued to the PIC chips at the end of an IRQ-based interrupt routine.
@@ -93,13 +93,14 @@ export fn interruptDispatch() void {
         SYSCALL => {
             // TODO:syscall
             const syscall_n = context.registers.eax;
+            _ = syscall_n;
             // tty.print("A syscall comes, id: {d}", .{syscall_n});
             // const syscall_n = isr.context.registers.eax;
-            if (syscall_n < syscall.handlers.len) {
-                syscall.handlers[syscall_n]();
-            } else {
-                syscall.invalid();
-            }
+            // if (syscall_n < syscall.handlers.len) {
+            //     syscall.handlers[syscall_n]();
+            // } else {
+            //     syscall.invalid();
+            // }
         },
 
         else => {
@@ -109,10 +110,10 @@ export fn interruptDispatch() void {
 
     // TODO:this is when no thread to run
     // If no user thread is ready to run, halt here and wait for interrupts.
-    if (scheduler.current() == null) {
-        x86.assembly.sti();
-        x86.assembly.hlt();
-    }
+    // if (scheduler.current() == null) {
+    //     x86.assembly.sti();
+    //     x86.assembly.hlt();
+    // }
 }
 
 ////
@@ -229,28 +230,28 @@ pub fn maskIRQ(irq: u8, mask: bool) void {
 //     irq: Number of the IRQ to subscribe to.
 //     mailbox_id: Mailbox to send the message to.
 //
-pub fn subscribeIRQ(irq: u8, mailbox_id: *const ipc.MailboxId) void {
-    // TODO: validate.
-    irq_subscribers[irq] = mailbox_id.*;
-    registerIRQ(irq, notifyIRQ);
-}
+// pub fn subscribeIRQ(irq: u8, mailbox_id: *const ipc.MailboxId) void {
+//     // TODO: validate.
+//     irq_subscribers[irq] = mailbox_id.*;
+//     registerIRQ(irq, notifyIRQ);
+// }
 
 ////
 // Notify the subscribed thread that the IRQ of interest has fired.
 //
-fn notifyIRQ() void {
-    const irq = context.interrupt_n - IRQ_0;
-    const subscriber = irq_subscribers[irq];
-
-    switch (subscriber) {
-        ipc.MailboxId.Port => {
-            ipc.send(&(ipc.Message.to(subscriber, 0, irq)
-                .as(ipc.MailboxId.Kernel)));
-        },
-        else => unreachable,
-    }
-    // TODO: support other types of mailboxes.
-}
+// fn notifyIRQ() void {
+//     const irq = context.interrupt_n - IRQ_0;
+//     const subscriber = irq_subscribers[irq];
+//
+//     switch (subscriber) {
+//         ipc.MailboxId.Port => {
+//             ipc.send(&(ipc.Message.to(subscriber, 0, irq)
+//                 .as(ipc.MailboxId.Kernel)));
+//         },
+//         else => unreachable,
+//     }
+//     // TODO: support other types of mailboxes.
+// }
 
 pub const Registers = packed struct {
     edi: u32 = 0,
