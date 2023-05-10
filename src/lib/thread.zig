@@ -27,10 +27,6 @@ pub const ThreadQueue = Queue(Thread);
 var threads = Array(?*Thread).init(&mem.allocator);
 
 pub const Thread = struct {
-    // TODO: simplify once #679 is solved.
-    // process_link: Queue(void).Node,
-    // queue_link: Queue(void).Node,
-
     context: interrupt.Context,
     process: *Process,
 
@@ -50,7 +46,7 @@ pub const Thread = struct {
     // Returns:
     //     Pointer to the new thread structure.
     //
-    fn init(process: *Process, local_tid: u8, entry_point: usize) *Thread {
+    pub fn init(process: *Process, local_tid: u8, entry_point: usize) *Thread {
         if (scheduler.current_process == process) {
             tty.panic("current process is not self, id: ", .{});
         }
@@ -127,5 +123,3 @@ fn initContext(entry_point: usize) interrupt.Context {
         .error_code = 0,
     };
 }
-
-

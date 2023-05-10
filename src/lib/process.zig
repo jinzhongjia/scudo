@@ -55,6 +55,25 @@ pub const Process = struct {
     }
 
     ////
+    // Destroy the process.
+    //
+    pub fn destroy(self: *Process) void {
+        if (scheduler.current_process != self) {
+            tty.panic("destroy process failed", .{});
+        }
+        // Deallocate all of user space.
+        // vmem.destroyAddressSpace();
+
+        {
+            var node = self.threads.popOrNull();
+            while (node == null) {
+                node.?.destroy();
+            }
+        }
+        mem.allocator.destroy(self);
+    }
+
+    ////
     // Create a new thread in the process.
     //
     // Arguments:
@@ -66,6 +85,7 @@ pub const Process = struct {
     pub fn createThread(self: *Process, entry_point: usize) *Thread {
         const thread_tmp = Thread.init(self, self.next_local_tid, entry_point);
 
+        // TODO fix
         self.threads.append(&thread_tmp);
         self.next_local_tid += 1;
 

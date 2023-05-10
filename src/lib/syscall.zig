@@ -2,32 +2,26 @@ const std = @import("std");
 const interrupt = @import("interrupt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("cpu");
+const vmem = @import("vmem.zig");
+const scheduler = @import("scheduler.zig");
+const ipc = @import("ipc.zig");
 
 const x86 = cpu.x86;
+const layout = x86.layout;
 const builtin = std.builtin;
 
 // Registered syscall handlers.
 pub var handlers = [_]*const fn () void{
-    // SYSCALL(exit), // 0
-    // SYSCALL(ipc.send), // 1
-    // SYSCALL(ipc.receive), // 2
-    // SYSCALL(interrupt.subscribeIRQ), // 3
+    SYSCALL(exit), // 0
+    SYSCALL(ipc.send), // 1
+    SYSCALL(ipc.receive), // 2
+    SYSCALL(interrupt.subscribeIRQ), // 3
     SYSCALL(x86.assembly.inb), // 4
     SYSCALL(x86.assembly.outb), // 5
-    // SYSCALL(map), // 6
-    // SYSCALL(createThread), // 7
-    SYSCALL(println),
-    SYSCALL(println),
-    SYSCALL(println),
-    SYSCALL(println),
-    SYSCALL(println),
-    SYSCALL(println),
+    SYSCALL(map), // 6
+    SYSCALL(createThread), // 7
     SYSCALL(println),
 };
-
-fn println() void {
-    tty.println("test", .{});
-}
 
 ////
 // Transform a normal function (with standard calling convention) into
@@ -111,6 +105,61 @@ inline fn getArg(comptime n: u8, comptime T: type) T {
             tty.panic("syscall args pass failed, it only can be Int and Pointer", null);
         },
     }
+}
+
+fn println() void {
+    tty.println("test", .{});
+}
+
+////
+// Exit the current process.
+//
+// Arguments:
+//     status: Exit status code.
+//
+inline fn exit(_: usize) void {
+    // TODO: handle return status.
+    scheduler.current_process.destroy();
+}
+
+////
+// Create a new thread in the current process.
+//
+// Arguments:
+//     entry_point: The entry point of the new thread.
+//
+// Returns:
+//     The TID of the new thread.
+//
+inline fn createThread(entry_point: usize) u16 {
+    const thread = scheduler.current_process.createThread(entry_point);
+    return thread.tid;
+}
+
+////
+// Wrap vmem.mapZone to expose it as a syscall for servers.
+//
+// Arguments:
+//     v_addr: Virtual address of the page to be mapped.
+//     p_addr: Physical address to map the page to.
+//     flags: Paging flags (protection etc.).
+//
+// Returns:
+//     true if the mapping was successful, false otherwise.
+//
+inline fn map(v_addr: usize, p_addr: usize, size: usize, writable: bool) bool {
+    // TODO: Only servers can call this.
+    // TODO: Validate p_addr.
+
+    if (v_addr < layout.USER) return false;
+
+    var flags: u32 = vmem.PAGE_USER;
+    if (writable) flags |= vmem.PAGE_WRITE;
+
+    vmem.mapZone(v_addr, p_addr, size, flags);
+    return true;
+
+    // TODO: Return error codes.
 }
 
 ////

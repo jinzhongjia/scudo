@@ -1,5 +1,6 @@
 const tty = @import("tty.zig");
 const syscall = @import("syscall.zig");
+const scheduler = @import("scheduler.zig");
 const ipc = @import("ipc.zig");
 const x86 = @import("cpu").x86;
 // some declare about PIC 8259
@@ -20,7 +21,7 @@ const PIC1_DATA = 0x21;
 const PIC2_CMD = 0xA0;
 const PIC2_DATA = 0xA1;
 
-var irq_subscribers = []ipc.MailboxId{ipc.MailboxId.Kernel} ** 16;
+var irq_subscribers = [_]ipc.MailboxId{ipc.MailboxId.Kernel} ** 16;
 
 // PIC command.
 // This is issued to the PIC chips at the end of an IRQ-based interrupt routine.
@@ -108,13 +109,10 @@ export fn interruptDispatch() void {
 
     // TODO:this is when no thread to run
     // If no user thread is ready to run, halt here and wait for interrupts.
-    // if (scheduler.current() == null) {
-    //     x86.sti();
-    //     x86.hlt();
-    // }
-    // tty.panic("Here in not handle!", .{});
-    // x86.assembly.sti();
-    // x86.assembly.hlt();
+    if (scheduler.current() == null) {
+        x86.assembly.sti();
+        x86.assembly.hlt();
+    }
 }
 
 ////

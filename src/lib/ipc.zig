@@ -180,14 +180,18 @@ pub fn send(message: *const Message) void {
 
     if (mailbox.waiting_queue.popFirst()) |receiving_thread| {
         // There's a thread waiting to receive, wake it up.
-        scheduler.new(receiving_thread);
+        scheduler.new(&receiving_thread.data);
         // Deliver the message into the receiver's address space.
         // TODO
         deliverMessage(message.*);
     } else {
         // No thread is waiting to receive, put the message in the queue.
 
-        mailbox.messages.append(message);
+        var node = mem.allocator.create(Queue(Message).Node) catch {
+            tty.panic("create a message node failed", .{});
+        };
+        node.data = message.*;
+        mailbox.messages.append(node);
     }
 }
 
@@ -213,6 +217,10 @@ pub fn receive(destination: *Message) void {
     } else {
         // No message in the queue, block the thread.
         scheduler.remove(receiving_thread);
-        mailbox.waiting_queue.append(&receiving_thread);
+        var node = mem.allocator.create(ThreadQueue.Node) catch {
+            tty.panic("create node failed", .{});
+        };
+        node.data = receiving_thread.*;
+        mailbox.waiting_queue.append(node);
     }
 }

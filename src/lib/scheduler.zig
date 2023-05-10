@@ -3,6 +3,7 @@ const gdt = @import("gdt.zig");
 const interrupt = @import("interrupt.zig");
 const timer = @import("timer.zig");
 const tty = @import("tty.zig");
+const mem = @import("mem.zig");
 const x86 = cpu.x86;
 const Process = @import("process.zig").Process;
 const Thread = @import("thread.zig").Thread;
@@ -71,7 +72,11 @@ pub fn switchProcess(process: *Process) void {
 //     new_thread: The thread to be added.
 //
 pub fn new(new_thread: *Thread) void {
-    ready_queue.append(new_thread);
+    var node = mem.allocator.create(ThreadQueue.Node) catch {
+        tty.panic("create ready_queue node failed", .{});
+    };
+    node.data = new_thread.*;
+    ready_queue.append(node);
     contextSwitch(new_thread);
 }
 
@@ -124,5 +129,5 @@ pub fn remove(thread: *Thread) void {
 //
 pub inline fn current() ?*Thread {
     const last = ready_queue.last orelse return null;
-    return last.data;
+    return &last.data;
 }
