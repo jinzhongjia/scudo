@@ -107,6 +107,7 @@ const shell_header = "[shell]$ ";
 
 var command_uname = [_]u8{ 'u', 'n', 'a', 'm', 'e' };
 var command_echo = [_]u8{ 'e', 'c', 'h', 'o', ' ' };
+var command_clear = [_]u8{ 'c', 'l', 'e', 'a', 'r' };
 
 fn shell(str: []u8) void {
     tty.br();
@@ -115,6 +116,8 @@ fn shell(str: []u8) void {
         tty.println("System:zos, note: this is a experimental system", .{});
     } else if (str.len >= 5 and compare(str, &command_echo)) {
         tty.println("{s}", .{str[5..str.len]});
+    } else if (str.len == 5 and compare(str, &command_clear)) {
+        tty.clear();
     } else {
         tty.println("unknown command", .{});
     }
