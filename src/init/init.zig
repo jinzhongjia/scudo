@@ -31,7 +31,7 @@ export fn init(magic: u32, info: *const multiboot_v1.Info) void {
 
     lib.mem.initialize(0x10000);
 
-    // lib.timer.initialize(100);
+    lib.timer.initialize(100);
     //
     // lib.scheduler.initialize();
 

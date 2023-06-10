@@ -56,8 +56,10 @@ grub: kernel
 	rm -rf iso_root
 	mkdir -p iso_root
 	mkdir -p iso_root/boot/grub
+	mkdir -p iso_root/module
 	cp grub.cfg 										iso_root/boot/grub/
 	cp zig-out/bin/zos              iso_root/boot/
+	cp test 												iso_root/module/
 	grub-mkrescue -o grub-zos.iso iso_root/
 	rm -rf iso_root
 
