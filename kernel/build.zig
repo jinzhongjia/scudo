@@ -1,4 +1,5 @@
 const std = @import("std");
+const FileSource = std.build.FileSource;
 
 pub fn build(b: *std.build.Builder) !void {
     // Define a freestanding x86_64 cross-compilation target.
@@ -30,6 +31,16 @@ pub fn build(b: *std.build.Builder) !void {
     kernel.addAnonymousModule("limine", .{
         .source_file = .{ .path = "limine-zig/limine.zig" },
     });
+    // kernel.addModule("cpu", b.createModule(.{ .source_file = FileSource.relative("src/cpu.zig") }));
+    // kernel.addModule("lib", b.createModule(.{
+    //     .source_file = FileSource.relative("src/lib.zig"),
+    //     .dependencies = &.{
+    //         .{
+    //             .name = "cpu",
+    //             .module = b.createModule(.{ .source_file = FileSource.relative("src/cpu.zig") }),
+    //         },
+    //     },
+    // }));
     kernel.setLinkerScriptPath(.{ .path = "linker.ld" });
     kernel.pie = true;
 
