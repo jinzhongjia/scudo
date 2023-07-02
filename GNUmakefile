@@ -1,7 +1,7 @@
 # Nuke built-in rules and variables.
 override MAKEFLAGS += -rR
 
-override IMAGE_NAME := barebones
+override IMAGE_NAME := Zos
 
 .PHONY: all
 all: $(IMAGE_NAME).iso
