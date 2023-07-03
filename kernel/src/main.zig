@@ -5,13 +5,14 @@ const lib = @import("lib.zig");
 const tty = lib.tty;
 const framebuffer = tty.framebuffer;
 
-
-// The following will be our kernel's entry point.
+// 我们内核的入口函数，通过ld连接脚本告诉来了limine,入口在这
 export fn _start() callconv(.C) noreturn {
-    tty.init();
-    tty.print("{s}", .{"Hello,world!"});
 
-    @panic("We're done, just hang...");
+    // 初始化tty的工作
+    tty.init();
+    tty.print("{s}", .{"Hello,world!\n"});
+
+    @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }
 
 // 在root作用域定义一个pub panic,覆盖默认的panic
