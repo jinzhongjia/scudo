@@ -9,3 +9,9 @@ tools:
  - xorriso(extra)
  - mtools(extra)
  - zig(0.11.0)
+
+ compile command:
+
+```sh
+make qemu-grub
+```
