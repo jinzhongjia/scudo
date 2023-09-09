@@ -83,7 +83,7 @@ pub const Info = packed struct {
     pub fn lastModuleEnd(self: *const Self) usize {
         if (self.mods_count == 0)
             return self.mods_addr;
-        const mods = @intToPtr([*]module, self.mods_addr);
+        const mods: [*]module = @ptrFromInt(self.mods_addr);
         return mods[self.mods_count - 1].mod_end;
     }
 
@@ -115,5 +115,5 @@ pub const module = packed struct {
 
 // check flags
 pub fn check_flag(flags: u32, bit: u5) bool {
-    return (flags) & (@intCast(u32, 1) << (bit)) != 0;
+    return (flags) & (@as(u32, @intCast(1)) << (bit)) != 0;
 }

@@ -72,7 +72,7 @@ fn unhandled() noreturn {
 // Call the correct handler based on the interrupt number.
 //
 export fn interruptDispatch() void {
-    const n = @intCast(u8, context.interrupt_n);
+    const n: u8 = @intCast(context.interrupt_n);
 
     switch (n) {
         // Exceptions.
@@ -210,15 +210,15 @@ pub fn registerIRQ(irq: u8, handler: *const fn () void) void {
 //
 pub fn maskIRQ(irq: u8, mask: bool) void {
     // Figure out if master or slave PIC owns the IRQ.
-    const port = if (irq < 8) @intCast(u16, PIC1_DATA) else @intCast(u16, PIC2_DATA);
+    const port = if (irq < 8) @as(u16, @intCast(PIC1_DATA)) else @as(u16, @intCast(PIC2_DATA));
     const old = x86.assembly.inb(port); // Retrieve the current mask.
 
     // Mask or unmask the interrupt.
-    const shift = @intCast(u3, irq % 8);
+    const shift = @as(u3, @intCast(irq % 8));
     if (mask) {
-        x86.assembly.outb(port, old | (@intCast(u8, 1) << shift));
+        x86.assembly.outb(port, old | (@as(u8, @intCast(1)) << shift));
     } else {
-        x86.assembly.outb(port, old & ~(@intCast(u8, 1) << shift));
+        x86.assembly.outb(port, old & ~(@as(u8, @intCast(1)) << shift));
     }
 }
 
@@ -281,7 +281,7 @@ pub const Context = packed struct {
     ss: u32,
 
     pub inline fn setReturnValue(self: *volatile Context, value: anytype) void {
-        self.registers.eax = if (@TypeOf(value) == bool) @boolToInt(value) else @intCast(u32, value);
+        self.registers.eax = if (@TypeOf(value) == bool) @intFromBool(value) else @as(u32, @intCast(value));
     }
 };
 

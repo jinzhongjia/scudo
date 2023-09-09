@@ -27,7 +27,7 @@ var idt: [256]Entry = undefined;
 
 // IDT descriptor register pointing at the IDT.
 var idtr = Register{
-    .limit = @intCast(u16, @sizeOf(@TypeOf(idt)) - 1),
+    .limit = @intCast(@sizeOf(@TypeOf(idt)) - 1),
     .base = undefined,
 };
 
@@ -40,10 +40,10 @@ var idtr = Register{
 //     offset: Address of the ISR.
 //
 pub fn setGate(n: u8, flags: u8, offset: *const fn () callconv(.C) void) void {
-    const intOffset = @ptrToInt(offset);
+    const intOffset = @intFromPtr(offset);
 
-    idt[n].isr_low = @truncate(u16, intOffset);
-    idt[n].isr_high = @truncate(u16, intOffset >> 16);
+    idt[n].isr_low = @truncate(intOffset);
+    idt[n].isr_high = @truncate(intOffset >> 16);
     idt[n].flags = flags;
     idt[n].reserved = 0;
     idt[n].kernel_cs = gdt.KERNEL_CODE;
@@ -56,7 +56,7 @@ pub fn initialize() void {
     tty.step("Setting up the Interrupt Descriptor Table", .{});
 
     // setting the idtr address
-    idtr.base = @ptrToInt(&idt);
+    idtr.base = @intFromPtr(&idt);
 
     // remap the pic
     interrupt.remapPIC();
@@ -65,12 +65,10 @@ pub fn initialize() void {
     install();
 
     // reload the idt
-    x86.assembly.lidt(@ptrToInt(&idtr));
+    x86.assembly.lidt(@intFromPtr(&idtr));
 
     tty.stepOK();
 }
-
-
 
 ////
 // Install the Interrupt Service Routines in the IDT.

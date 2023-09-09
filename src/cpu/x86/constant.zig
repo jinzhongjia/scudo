@@ -14,7 +14,7 @@ pub const PAGE_SIZE: usize = 4096;
 //     The given address as type T (usize or a pointer).
 //
 fn intOrPtr(comptime T: type, address: usize) T {
-    return if (T == usize) address else @intToPtr(T, address);
+    return if (T == usize) address else @ptrFromInt( address);
 }
 
 ////
@@ -27,7 +27,7 @@ fn intOrPtr(comptime T: type, address: usize) T {
 //     The given address as type usize.
 //
 fn int(address: anytype) usize {
-    return if (@TypeOf(address) == usize) address else @ptrToInt(address);
+    return if (@TypeOf(address) == usize) address else @intFromPtr(address);
 }
 
 ////

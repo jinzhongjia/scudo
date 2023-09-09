@@ -66,19 +66,19 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
 
     // Get the stack addr
     var stack_addr = x86.constant.pageBase(info.lastModuleEnd());
-    stack = @intToPtr([*]usize, stack_addr);
+    stack = @ptrFromInt( stack_addr);
     stack_end = stack_addr + 1;
 
     // Place the stack of free pages after the last Multiboot module.
     {
         var map: usize = info.mmap_addr;
         while (map < info.mmap_addr + info.mmap_length) {
-            var entry = @intToPtr(*multiboot_v1.MMap_entry, map);
+            var entry:*multiboot_v1.MMap_entry = @ptrFromInt( map);
 
             // Calculate the start and end of this memory area.
             // Here we just Brute force truncation of addresses
-            var start = @truncate(usize, entry.addr);
-            var end = @truncate(usize, start + entry.len);
+            var start:usize = @truncate( entry.addr);
+            var end:usize = @truncate( start + entry.len);
 
             // Anything that comes before the end of the stack of free pages is reserved.
             start = if (start >= stack_end) start else stack_end;
@@ -96,7 +96,7 @@ pub fn initialize(info: *const multiboot_v1.Info) void {
             map += entry.size + @sizeOf(@TypeOf(entry.size));
         }
     }
-    stack_end = @ptrToInt(&stack) + @sizeOf(usize) * STACK_NUM;
+    stack_end = @intFromPtr(&stack) + @sizeOf(usize) * STACK_NUM;
 
     tty.ColorPrint(tty.Color.White, " {d}MB", .{available() / 1024 / 1024});
 

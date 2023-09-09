@@ -99,13 +99,13 @@ const TSS = packed struct {
 //
 fn makeEntry(base: usize, limit: usize, access: u8, flags: u4) Entry {
     return Entry{
-        .limit_low = @truncate(u16, limit),
-        .base_low = @truncate(u16, base),
-        .base_mid = @truncate(u8, base >> 16),
-        .access = @truncate(u8, access),
-        .limit_high = @truncate(u4, limit >> 16),
-        .flags = @truncate(u4, flags),
-        .base_high = @truncate(u8, base >> 24),
+        .limit_low = @truncate( limit),
+        .base_low = @truncate( base),
+        .base_mid = @truncate( base >> 16),
+        .access = @truncate( access),
+        .limit_high = @truncate( limit >> 16),
+        .flags = @truncate( flags),
+        .base_high = @truncate( base >> 24),
     };
 }
 
@@ -149,13 +149,13 @@ fn setKernelStack(esp0: usize) void {
 //
 pub fn initialize() void {
     tty.step("Setting up the Global Descriptor Table", .{});
-    gdtr.base = @ptrToInt(&gdt[0]);
+    gdtr.base = @intFromPtr(&gdt[0]);
 
     // Initialize GDT.
     loadGDT(&gdtr);
 
     // Initialize TSS.
-    const tss_entry = makeEntry(@ptrToInt(&tss), @sizeOf(TSS) - 1, TSS_ACCESS, 0);
+    const tss_entry = makeEntry(@intFromPtr(&tss), @sizeOf(TSS) - 1, TSS_ACCESS, 0);
     gdt[TSS_DESC / @sizeOf(Entry)] = tss_entry;
     x86.assembly.ltr(TSS_DESC);
 

@@ -10,8 +10,8 @@ const tty = @import("tty.zig");
 pub const PageEntry = usize;
 
 // Page table structures (mapped with the recursive PD trick).
-const PD = @intToPtr([*]PageEntry, layout.PD);
-const PTs = @intToPtr([*]PageEntry, layout.PTs);
+const PD: [*]PageEntry = @ptrFromInt(layout.PD);
+const PTs: [*]PageEntry = @ptrFromInt(layout.PTs);
 
 // Page mapping flags. Refer to the official Intel manual.
 pub const PAGE_PRESENT = (1 << 0);
@@ -77,9 +77,9 @@ pub fn map(v_addr: usize, p_addr: ?usize, flags: u32) void {
         // Allocate the new Page Table and point the Page Directory entry to it.
         // Permissive flags are set in the PD, as restrictions are set in the PT entry.
         pd_entry.* = pmem.allocate() | flags | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
-        x86.assembly.invlpg(@ptrToInt(pt_entry));
+        x86.assembly.invlpg(@intFromPtr(pt_entry));
 
-        const pt = @ptrCast([*]PageEntry, x86.constant.pageBase(pt_entry));
+        const pt: [*]PageEntry = @ptrCast(x86.constant.pageBase(pt_entry));
         zeroPageTable(pt);
     }
 
@@ -160,7 +160,7 @@ pub fn unmapZone(v_addr: usize, size: usize) void {
 //     page_table: The address of the table.
 //
 fn zeroPageTable(page_table: [*]PageEntry) void {
-    const pt = @ptrCast([*]u8, page_table);
+    const pt: [*]u8 = @ptrCast(page_table);
     @memset(pt[0 .. x86.constant.PAGE_SIZE / @sizeOf(u8)], 0);
 }
 
@@ -205,17 +205,17 @@ pub fn initialize() void {
     }
 
     // Allocate a page for the Page Directory.
-    const pd = @intToPtr([*]PageEntry, pmem.allocate());
+    const pd = @as([*]PageEntry, @ptrFromInt(pmem.allocate()));
     zeroPageTable(pd);
 
     // Identity map the kernel (first 8 MB) and point last entry of PD to the PD itself.
     pd[0] = 0x000000 | PAGE_PRESENT | PAGE_WRITE | PAGE_4MB | PAGE_GLOBAL;
     pd[1] = 0x400000 | PAGE_PRESENT | PAGE_WRITE | PAGE_4MB | PAGE_GLOBAL;
-    pd[1023] = @ptrToInt(pd) | PAGE_PRESENT | PAGE_WRITE;
+    pd[1023] = @intFromPtr(pd) | PAGE_PRESENT | PAGE_WRITE;
     // The recursive PD trick maps the whole paging hierarchy at the end of the address space.
 
     interrupt.register(14, pageFault); // Register the page fault handler.
-    setupPaging(@ptrToInt(pd)); // Enable paging.
+    setupPaging(@intFromPtr(pd)); // Enable paging.
 
     tty.stepOK();
 }
@@ -229,9 +229,9 @@ pub fn initialize() void {
 pub fn createAddressSpace() usize {
     // Allocate space for a new Page Directory.
     const phys_pd = pmem.allocate();
-    const virt_pd = @intToPtr([*]PageEntry, layout.TMP);
+    const virt_pd = @as([*]PageEntry, @ptrFromInt(layout.TMP));
     // Map it somewhere and initialize it.
-    map(@ptrToInt(virt_pd), phys_pd, PAGE_WRITE);
+    map(@intFromPtr(virt_pd), phys_pd, PAGE_WRITE);
     zeroPageTable(virt_pd);
 
     // Copy the kernel space of the original address space.

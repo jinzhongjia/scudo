@@ -14,15 +14,15 @@ pub fn build(b: *std.Build) void {
     var disabled_features = Cpu.Feature.Set.empty;
     const Feature = Target.x86.Feature;
 
-    disabled_features.addFeature(@enumToInt(Feature.x87));
-    disabled_features.addFeature(@enumToInt(Feature.mmx));
-    disabled_features.addFeature(@enumToInt(Feature.sse));
-    disabled_features.addFeature(@enumToInt(Feature.sse2));
-    disabled_features.addFeature(@enumToInt(Feature.avx));
-    disabled_features.addFeature(@enumToInt(Feature.avx2));
-    disabled_features.addFeature(@enumToInt(Feature.avx512f));
+    disabled_features.addFeature(@intFromEnum(Feature.x87));
+    disabled_features.addFeature(@intFromEnum(Feature.mmx));
+    disabled_features.addFeature(@intFromEnum(Feature.sse));
+    disabled_features.addFeature(@intFromEnum(Feature.sse2));
+    disabled_features.addFeature(@intFromEnum(Feature.avx));
+    disabled_features.addFeature(@intFromEnum(Feature.avx2));
+    disabled_features.addFeature(@intFromEnum(Feature.avx512f));
 
-    enabled_features.addFeature(@enumToInt(Feature.soft_float));
+    enabled_features.addFeature(@intFromEnum(Feature.soft_float));
 
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which

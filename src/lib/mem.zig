@@ -42,16 +42,16 @@ pub const Block = struct {
     //
     pub fn size(self: *Self) usize {
         // Block can end at the beginning of the next block, or at the end of the heap.
-        const end = if (self.next) |next_block| @ptrToInt(next_block) else @ptrToInt(heap.ptr) + heap.len;
+        const end = if (self.next) |next_block| @intFromPtr(next_block) else @intFromPtr(heap.ptr) + heap.len;
         // End - Beginning - Metadata = the usable amount of memory.
-        return end - @ptrToInt(self) - @sizeOf(Block);
+        return end - @intFromPtr(self) - @sizeOf(Block);
     }
 
     ////
     // Return a slice of the usable portion of the block.
     //
     pub fn data(self: *Block) [*]u8 {
-        return @intToPtr([*]u8, @ptrToInt(self) + @sizeOf(Block));
+        return @ptrFromInt(@intFromPtr(self) + @sizeOf(Block));
     }
 
     ////
@@ -64,7 +64,7 @@ pub const Block = struct {
     //     The associated block structure.
     //
     pub fn fromData(bytes: [*]u8) *Block {
-        return @intToPtr(*Block, @ptrToInt(bytes) - @sizeOf(Block));
+        return @ptrFromInt(@intFromPtr(bytes) - @sizeOf(Block));
     }
 };
 
@@ -181,8 +181,8 @@ fn occupyBlock(block: *Block) void {
 }
 
 fn unsafeIntToPtr(comptime Ptr: type, int: anytype) Ptr {
-  @setRuntimeSafety(false);
-  return @intToPtr(Ptr, int);
+    @setRuntimeSafety(false);
+    return @ptrFromInt(int);
 }
 
 ////
@@ -202,7 +202,7 @@ fn splitBlock(block: *Block, left_sz: usize) void {
     }
 
     // Setup the second block at the end of the first one.
-    var tmp = @ptrToInt(block) + @sizeOf(Block) + left_sz;
+    var tmp = @intFromPtr(block) + @sizeOf(Block) + left_sz;
     // tty.println("{x}", .{tmp});
     var right_block = unsafeIntToPtr(*Block, tmp);
 
@@ -282,8 +282,8 @@ pub fn initialize(capacity: usize) void {
     vmem.mapZone(x86.layout.HEAP, null, capacity, vmem.PAGE_WRITE | vmem.PAGE_GLOBAL);
     // TODO: on-demand mapping.
 
-    heap = @intToPtr([*]u8, x86.layout.HEAP)[0..capacity];
-    free_list = @ptrCast(*Block, @alignCast(@alignOf(Block), heap.ptr));
+    heap = @as([*]u8, @ptrFromInt(x86.layout.HEAP))[0..capacity];
+    free_list = @ptrCast(@alignCast(heap.ptr));
 
     free_list.?.* = Block{};
 

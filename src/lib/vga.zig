@@ -41,7 +41,7 @@ pub const Entry = packed struct {
 // VGA status.
 pub const VGA = struct {
     const Self = @This();
-    vram: *[VRAM_SIZE / @sizeOf(Entry)]Entry = @intToPtr([*]Entry, VRAM_ADDR)[0 .. VRAM_SIZE / @sizeOf(Entry)],
+    vram: *[VRAM_SIZE / @sizeOf(Entry)]Entry = @as([*]Entry, @ptrFromInt(VRAM_ADDR))[0 .. VRAM_SIZE / @sizeOf(Entry)],
     cursor: usize = 0,
     foreground: Color = Color.LightGrey,
     background: Color = Color.Black,
@@ -57,7 +57,7 @@ pub const VGA = struct {
     //
     pub fn init(vram: usize) VGA {
         return VGA{
-            .vram = @intToPtr([*]Entry, vram)[0 .. VRAM_SIZE / @sizeOf(Entry)],
+            .vram = @as([*]Entry, @ptrFromInt(vram))[0 .. VRAM_SIZE / @sizeOf(Entry)],
             .cursor = 0,
             .foreground = Color.LightGrey,
             .background = Color.Black,
@@ -155,9 +155,9 @@ pub const VGA = struct {
     //
     fn updateCursor(self: *const VGA) void {
         x86.assembly.outb(0x3D4, 0x0F);
-        x86.assembly.outb(0x3D5, @truncate(u8, self.cursor));
+        x86.assembly.outb(0x3D5, @truncate(self.cursor));
         x86.assembly.outb(0x3D4, 0x0E);
-        x86.assembly.outb(0x3D5, @truncate(u8, self.cursor >> 8));
+        x86.assembly.outb(0x3D5, @truncate(self.cursor >> 8));
     }
 
     ////
@@ -168,7 +168,7 @@ pub const VGA = struct {
         var cursor: usize = 0;
 
         x86.assembly.outb(0x3D4, 0x0E);
-        cursor |= @intCast(usize, x86.assembly.inb(0x3D5)) << 8;
+        cursor |= @as(usize, @intCast(x86.assembly.inb(0x3D5))) << 8;
 
         x86.assembly.outb(0x3D4, 0x0F);
         cursor |= x86.assembly.inb(0x3D5);
