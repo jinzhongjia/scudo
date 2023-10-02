@@ -128,6 +128,10 @@ pub fn print(comptime format: []const u8, args: anytype) void {
     fmt.format(writer, format, args) catch {};
 }
 
+pub fn println(comptime format: []const u8, args: anytype) void {
+    print(format ++ "\n", args);
+}
+
 // 这是定义的panic函数，用来覆盖默认的
 // 具体见这里：
 // https://ziglang.org/documentation/master/std/#A;std:builtin.panic
