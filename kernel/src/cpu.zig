@@ -52,3 +52,7 @@ pub inline fn outb(port: u16, value: u8) void {
           [port] "N{dx}" (port),
     );
 }
+
+pub inline fn debug() void {
+    asm volatile ("xchgw %bx, %bx");
+}

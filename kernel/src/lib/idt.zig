@@ -92,7 +92,7 @@ fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8
     };
 }
 
-export fn exception_handler() noreturn {
+export fn exception_handler() void {
     @panic("An exception occurred");
 }
 
@@ -106,7 +106,7 @@ comptime {
         \\     isr\n:
         // Push a dummy error code for interrupts that don't have one.
         \\         call exception_handler
-        \\         iret
+        \\         iretq
         \\ .endmacro
         \\
         \\ isrGenerate 0
