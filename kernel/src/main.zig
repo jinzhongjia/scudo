@@ -9,16 +9,18 @@ export fn _start() callconv(.C) noreturn {
 
     // 初始化tty的工作
     tty.init();
-    tty.println("{s}", .{"Hello World!"});
-    var boot_time = lib.boot_info.bootTimeUTC2(lib.boot_info.time_zone.CTorCST);
-    tty.println("boot time is {d}.{d}.{d} {d}:{d}:{d}", .{
-        boot_time.year,
-        boot_time.month,
-        boot_time.day,
-        boot_time.hour,
-        boot_time.minute,
-        boot_time.second,
-    });
+    // tty.println("{s}", .{"Hello World!"});
+    // var boot_time = lib.boot_info.bootTimeUTC2(lib.boot_info.time_zone.CTorCST);
+    // tty.println("boot time is {d}.{d}.{d} {d}:{d}:{d}", .{
+    //     boot_time.year,
+    //     boot_time.month,
+    //     boot_time.day,
+    //     boot_time.hour,
+    //     boot_time.minute,
+    //     boot_time.second,
+    // });
+    lib.idt.init();
+    asm volatile ("int $30");
 
     @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }

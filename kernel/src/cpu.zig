@@ -17,3 +17,7 @@ pub inline fn lidt(idtr: usize) void {
         : [idtr] "r" (idtr),
     );
 }
+
+pub inline fn sti() void {
+    asm volatile ("sti");
+}
