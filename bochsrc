@@ -1,5 +1,5 @@
 megs: 128
 display_library: x, options="gui_debug"
-ata0-master: type=cdrom, path=Zos.iso, status=inserted
+ata0-master: type=cdrom, path=zos.iso, status=inserted
 boot: cdrom
 magic_break: enabled=1
