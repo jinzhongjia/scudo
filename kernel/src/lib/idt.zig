@@ -3,8 +3,8 @@ const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 
 pub fn init() void {
+    // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
-    idtr.limit = @sizeOf(@TypeOf(idt)) - 1;
 
     {
         idt_set_descriptor(0, isr0, @intFromEnum(FLAGS.interrupt_gate));
@@ -39,7 +39,6 @@ pub fn init() void {
         idt_set_descriptor(29, isr29, @intFromEnum(FLAGS.interrupt_gate));
         idt_set_descriptor(30, isr30, @intFromEnum(FLAGS.interrupt_gate));
         idt_set_descriptor(31, isr31, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(32, isr32, @intFromEnum(FLAGS.interrupt_gate));
     }
 
     cpu.lidt(@intFromPtr(&idtr));
@@ -51,7 +50,7 @@ const GDT_OFFSET_KERNEL_CODE: u16 = 0b0000_0000_0010_1000;
 //type for IDTR
 //https://wiki.osdev.org/Interrupt_Descriptor_Table#IDTR
 const idtr_t = packed struct {
-    limit: u16,
+    limit: u16 = @sizeOf(@TypeOf(idt)) - 1,
     base: usize,
 };
 
@@ -78,7 +77,9 @@ const idt_entry_t = packed struct {
 var idt: [256]idt_entry_t = undefined;
 
 // idtr
-var idtr: idtr_t = undefined;
+var idtr: idtr_t = .{
+    .base = 0,
+};
 
 fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8) void {
     const ptr_int = @intFromPtr(isr);
@@ -140,7 +141,6 @@ comptime {
         \\ isrGenerate 29
         \\ isrGenerate 30
         \\ isrGenerate 31
-        \\ isrGenerate 32
     );
 }
 
@@ -177,4 +177,3 @@ pub extern fn isr28() void;
 pub extern fn isr29() void;
 pub extern fn isr30() void;
 pub extern fn isr31() void;
-pub extern fn isr32() void;
