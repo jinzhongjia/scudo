@@ -1,8 +1,14 @@
-/// more:https://wiki.osdev.org/Interrupts_Tutorial
+// more:https://wiki.osdev.org/Interrupts_Tutorial
+// about exception error code https://wiki.osdev.org/Exceptions#Selector_Error_Code
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 
 pub fn init() void {
+    // We set up the entire idt here to prevent unknown problems.
+    inline for (0..idt.len) |index| {
+        idt_set_descriptor(index, make_undefined_handle(@intCast(index)).handle, @intFromEnum(FLAGS.interrupt_gate));
+    }
+
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
@@ -13,6 +19,14 @@ pub fn init() void {
     cpu.lidt(@intFromPtr(&idtr));
     // enable interrupt
     cpu.sti();
+}
+
+fn make_undefined_handle(comptime num: u8) type {
+    return struct {
+        fn handle() callconv(.C) void {
+            tty.panicf("An undefined interrupt was triggered, interrupt id is {d}", num);
+        }
+    };
 }
 
 const GDT_OFFSET_KERNEL_CODE: u16 = 0b0000_0000_0010_1000;
@@ -62,9 +76,23 @@ fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8
     };
 }
 
+// Interrupt Vector offsets of exceptions.
+const EXCEPTION_0 = 0;
+const EXCEPTION_31 = EXCEPTION_0 + 31;
+
+const SYSCALL = 128;
+
 export fn interruptDispatch() void {
     // @panic("An exception occurred");
-    tty.println("note: the interrupt number is {d}", .{context.interrupt_num});
+    const interrupt_num: u8 = @intCast(context.interrupt_num);
+    tty.println("note: the interrupt number is {d}", interrupt_num);
+    switch (interrupt_num) {
+        EXCEPTION_0...EXCEPTION_31 => {},
+        PIC.IRQ_0...PIC.IRQ_15 => {},
+        SYSCALL => {},
+        // Theoretically, it would not happen to reach this point.
+        else => unreachable,
+    }
 }
 
 pub export var context: *volatile Context = undefined;
@@ -320,3 +348,57 @@ fn install() void {
     // syscall
     idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
 }
+
+/// this struct define allthing about PIC.
+/// more:https://wiki.osdev.org/PIC
+pub const PIC = struct {
+    /// IO base address for master PIC
+    const PIC1 = 0x20;
+    /// IO base address for slave PIC
+    const PIC2 = 0xA0;
+
+    const PIC1_CMD = PIC1;
+    const PIC1_DATA = PIC1 + 1;
+
+    const PIC2_CMD = PIC2;
+    const PIC2_DATA = PIC2 + 1;
+
+    // PIC commands:
+    /// Read the In-Service Register.
+    const ISR_READ = 0x0B;
+    /// End of Interrupt.
+    const EOI = 0x20;
+
+    // Initialization Control Words commands.
+    const ICW1_INIT = 0x10;
+    const ICW1_ICW4 = 0x01;
+    const ICW4_8086 = 0x01;
+
+    /// Interrupt Vector offsets of IRQs.
+    const IRQ_0 = EXCEPTION_31 + 1; // 0x20
+    const IRQ_8 = IRQ_0 + 8; // 0x28
+    const IRQ_15 = IRQ_0 + 15; // 0x2F
+
+    /// initialization for pic and remap the irqs
+    fn remap() void {
+        // ICW1: start initialization sequence.
+        cpu.outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
+        cpu.outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
+
+        // ICW2: Interrupt Vector offsets of IRQs.
+        cpu.outb(PIC1_DATA, IRQ_0);
+        cpu.outb(PIC2_DATA, IRQ_8);
+
+        // ICW3: IRQ line 2 to connect master to slave PIC.
+        cpu.outb(PIC1_DATA, 1 << 2);
+        cpu.outb(PIC2_DATA, 2);
+
+        // ICW4: 80x86 mode.
+        cpu.outb(PIC1_DATA, ICW4_8086);
+        cpu.outb(PIC2_DATA, ICW4_8086);
+
+        // Mask all IRQs.
+        cpu.outb(PIC1_DATA, 0xFF);
+        cpu.outb(PIC2_DATA, 0xFF);
+    }
+};
