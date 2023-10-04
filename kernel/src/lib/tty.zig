@@ -134,6 +134,10 @@ pub fn print(comptime format: []const u8, args: anytype) void {
         fmt.format(writer, format, args) catch {
             @panic("format err!");
         };
+    } else if (args_type_info == .Null) {
+        fmt.format(writer, format, .{}) catch {
+            @panic("format err!");
+        };
     } else {
         fmt.format(writer, format, .{args}) catch {
             @panic("format err!");
@@ -172,6 +176,8 @@ pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
     const args_type_info = @typeInfo(ArgsType);
     if (args_type_info == .Struct and args_type_info.Struct.is_tuple) {
         fmt.format(writer, format, args) catch {};
+    } else if (args_type_info == .Null) {
+        fmt.format(writer, format, .{}) catch {};
     } else {
         fmt.format(writer, format, .{args}) catch {};
     }
