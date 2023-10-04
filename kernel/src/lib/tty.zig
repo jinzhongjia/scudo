@@ -149,6 +149,10 @@ pub fn println(comptime format: []const u8, args: anytype) void {
 // 具体见这里：
 // https://ziglang.org/documentation/master/std/#A;std:builtin.panic
 pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+    panicf("\nPanic:{s}\n", .{msg});
+}
+
+pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
     @setCold(true);
     // 尴尬的是，为了在panic时保证红色输出，我们不得不在这里定义一个新的writer
     // 当然也可以使用color_string来实现，不过那样太丑了
@@ -163,6 +167,14 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
         }.writeFn,
     );
     const writer: Writer = .{ .context = {} };
-    fmt.format(writer, "\nPanic:{s}\n", .{msg}) catch {};
+
+    const ArgsType = @TypeOf(args);
+    const args_type_info = @typeInfo(ArgsType);
+    if (args_type_info == .Struct and args_type_info.Struct.is_tuple) {
+        fmt.format(writer, format, args) catch {};
+    } else {
+        fmt.format(writer, format, .{args}) catch {};
+    }
+
     cpu.hlt();
 }
