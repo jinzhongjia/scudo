@@ -20,7 +20,8 @@ export fn _start() callconv(.C) noreturn {
     //     boot_time.second,
     // });
     lib.idt.init();
-    asm volatile ("int $30");
+    // asm volatile ("xchgw %bx, %bx");
+    asm volatile ("int $31");
 
     @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }
