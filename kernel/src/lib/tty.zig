@@ -124,8 +124,21 @@ const KWriter = std.io.Writer(
 );
 
 pub fn print(comptime format: []const u8, args: anytype) void {
+    // in this function, we use reflection
+    // when args is a tuple, we will just pass it to format
+    // when args is others, we will wrap it as tuple
     const writer: KWriter = .{ .context = {} };
-    fmt.format(writer, format, args) catch {};
+    const ArgsType = @TypeOf(args);
+    const args_type_info = @typeInfo(ArgsType);
+    if (args_type_info == .Struct and args_type_info.Struct.is_tuple) {
+        fmt.format(writer, format, args) catch {
+            @panic("format err!");
+        };
+    } else {
+        fmt.format(writer, format, .{args}) catch {
+            @panic("format err!");
+        };
+    }
 }
 
 pub fn println(comptime format: []const u8, args: anytype) void {
