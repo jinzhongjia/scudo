@@ -99,15 +99,47 @@ export fn exception_handler() void {
 comptime {
     asm (
     // Template for the Interrupt Service Routines.
-        \\ .macro isrGenerate n
+        \\ .macro isrGenerate n ec=0
         \\     .align 4
         \\     .type isr\n, @function
         \\ 
         \\     isr\n:
         // Push a dummy error code for interrupts that don't have one.
-        \\         call exception_handler
-        \\         iretq
+        \\         .if 1 - \ec
+        \\             push $0
+        \\         .endif
+        \\         push $\n
+        \\         jmp isrCommon
         \\ .endmacro
+        \\
+        \\ .macro pushaq
+        \\     push %rax
+        \\     push %rcx
+        \\     push %rdx
+        \\     push %rbx
+        \\     push %rsp
+        \\     push %rbp
+        \\     push %rsi
+        \\     push %rdi
+        \\ .endm # pushaq
+        \\
+        \\ .macro popaq
+        \\     pop %rdi
+        \\     pop %rsi
+        \\     pop %rbp
+        \\     pop %rsp
+        \\     pop %rbx
+        \\     pop %rdx
+        \\     pop %rcx
+        \\     pop %rax
+        \\ .endm # popaq
+        \\
+        \\ isrCommon:
+        \\    pushaq // Save the registers state.
+        \\    popaq
+        \\    add $16, %esp 
+        \\    iretq
+        \\ .type isrCommon, @function
         \\
         \\ isrGenerate 0
         \\ isrGenerate 1
