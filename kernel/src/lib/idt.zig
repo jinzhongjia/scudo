@@ -12,6 +12,8 @@ pub fn init() void {
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
+    PIC.remap();
+
     // this function will install all custom interrupt handle function
     install();
 
@@ -82,14 +84,60 @@ const EXCEPTION_31 = EXCEPTION_0 + 31;
 
 const SYSCALL = 128;
 
+const messages = [_][]const u8{
+    "#DE Divide Error",
+    "#DB RESERVED",
+    "--  NMI Interrupt",
+    "#BP Breakpoint",
+    "#OF Overflow",
+    "#BR BOUND Range Exceeded",
+    "#UD Invalid Opcode (Undefined Opcode)",
+    "#NM Device Not Available (No Math Coprocessor)",
+    "#DF Double Fault",
+    "--  Coprocessor Segment Overrun (reserved)",
+    "#TS Invalid TSS",
+    "#NP Segment Not Present",
+    "#SS Stack-Segment Fault",
+    "#GP General Protection",
+    "#PF Page Fault",
+    "--  (Intel reserved. Do not use.)",
+    "#MF x87 FPU Floating-Point Error (Math Fault)",
+    "#AC Alignment Check",
+    "#MC Machine Check",
+    "#XF SIMD Floating-Point Exception",
+    "#VE Virtualization Exception",
+    "#CP Control Protection Exception",
+} ++ ([_][]const u8{
+    "--  Reserved Interrupt",
+} ** 6) ++ [_][]const u8{
+    "#HV Hypervisor Injection Exception",
+    "#VC VMM Communication Exception",
+    "#SX Security Exception",
+    "--  Reserved Interrupt",
+};
+
 export fn interruptDispatch() void {
     // @panic("An exception occurred");
     const interrupt_num: u8 = @intCast(context.interrupt_num);
     tty.println("note: the interrupt number is {d}", interrupt_num);
     switch (interrupt_num) {
-        EXCEPTION_0...EXCEPTION_31 => {},
-        PIC.IRQ_0...PIC.IRQ_15 => {},
-        SYSCALL => {},
+        EXCEPTION_0...EXCEPTION_31 => {
+            tty.println("EXCEPTION: {s}", messages[interrupt_num]);
+            tty.println("   VECTOR: 0x{x:0>2}", interrupt_num);
+            tty.println("    ERROR: 0b{b:0>17}", context.error_code);
+            tty.println("   RFLAGS: 0b{b:0>22}", context.rflags);
+            tty.println("       CS: 0x{x:0>2}", context.cs);
+            tty.println("      RIP: 0x{x}", context.rip);
+            tty.println("      RSP: 0x{x}", context.rsp);
+            cpu.hlt();
+        },
+        PIC.IRQ_0...PIC.IRQ_15 => {
+            tty.println("yes, we meet an IRQ", null);
+            PIC.EOI(interrupt_num);
+        },
+        SYSCALL => {
+            tty.println("yes, we meet a syscall", null);
+        },
         // Theoretically, it would not happen to reach this point.
         else => unreachable,
     }
@@ -108,10 +156,10 @@ pub const Context = packed struct {
     // CPU status
     // more you can see:
     // https://blog.nvimer.org/2023/10/03/interrupt-function/
-    eip: u64,
+    rip: u64,
     cs: u64,
-    eflags: u64,
-    esp: u64, // note: this will only be stored when privilege-level change
+    rflags: u64,
+    rsp: u64, // note: this will only be stored when privilege-level change
     ss: u64, // note: this will only be stored when privilege-level change
 
 };
@@ -138,7 +186,8 @@ comptime {
         \\     isr\n:
         // Push a dummy error code for interrupts that don't have one.
         \\         .if 1 - \ec
-        \\             push $0
+        \\             push $0b10000000000000000
+        // 10000
         \\         .endif
         \\         push $\n
         \\         jmp isrCommon
@@ -367,7 +416,7 @@ pub const PIC = struct {
     /// Read the In-Service Register.
     const ISR_READ = 0x0B;
     /// End of Interrupt.
-    const EOI = 0x20;
+    const PIC_EOI = 0x20;
 
     // Initialization Control Words commands.
     const ICW1_INIT = 0x10;
@@ -380,6 +429,7 @@ pub const PIC = struct {
     const IRQ_15 = IRQ_0 + 15; // 0x2F
 
     /// initialization for pic and remap the irqs
+    /// you may confuse to this, for more, you can see this:https://wiki.osdev.org/PIC#Protected_Mode
     fn remap() void {
         // ICW1: start initialization sequence.
         cpu.outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
@@ -400,5 +450,12 @@ pub const PIC = struct {
         // Mask all IRQs.
         cpu.outb(PIC1_DATA, 0xFF);
         cpu.outb(PIC2_DATA, 0xFF);
+    }
+
+    fn EOI(interrupt_n: u8) void {
+        if (interrupt_n >= IRQ_8) {
+            cpu.outb(PIC2_CMD, PIC_EOI);
+        }
+        cpu.outb(PIC1_CMD, PIC_EOI);
     }
 };
