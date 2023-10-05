@@ -458,4 +458,38 @@ pub const PIC = struct {
         }
         cpu.outb(PIC1_CMD, PIC_EOI);
     }
+
+    fn mask_IRQ(irq: u8, mask: bool) void {
+        const port = if (irq < 8) u16(PIC1_DATA) else u16(PIC2_DATA);
+        if (irq >= 0) {
+            irq -= 8;
+        }
+        const current_mask = cpu.inb(port);
+
+        if (mask) {
+            cpu.outb(port, current_mask | (1 << irq));
+        } else {
+            cpu.outb(port, current_mask & ~(1 << irq));
+        }
+    }
+
+    /// Check whether the fired IRQ was spurious.
+    /// more: https://wiki.osdev.org/PIC#Spurious_IRQs
+    fn spurious_IRQ(irq: u8) bool {
+        if (irq != 7 and irq != 15) {
+            return false;
+        }
+
+        // default is pic1
+        var port = PIC1_CMD;
+        if (irq == 15) {
+            port = PIC2_CMD;
+        }
+
+        // read ISR
+        cpu.outb(port, ISR_READ);
+        const in_service = cpu.inb(port);
+
+        return (in_service & (1 << 7)) == 0;
+    }
 };
