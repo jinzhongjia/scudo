@@ -207,6 +207,130 @@ pub const Registers = packed struct {
     rax: u64 = 0,
 };
 
+/// this struct define allthing about PIC.
+/// more:https://wiki.osdev.org/PIC
+pub const PIC = struct {
+    /// IO base address for master PIC
+    const PIC1 = 0x20;
+    /// IO base address for slave PIC
+    const PIC2 = 0xA0;
+
+    const PIC1_CMD = PIC1;
+    const PIC1_DATA = PIC1 + 1;
+
+    const PIC2_CMD = PIC2;
+    const PIC2_DATA = PIC2 + 1;
+
+    // PIC commands:
+    /// Read the In-Service Register.
+    const ISR_READ = 0x0B;
+    /// End of Interrupt.
+    const PIC_EOI = 0x20;
+
+    // Initialization Control Words commands.
+    const ICW1_INIT = 0x10;
+    const ICW1_ICW4 = 0x01;
+    const ICW4_8086 = 0x01;
+
+    /// Interrupt Vector offsets of IRQs.
+    const IRQ_0 = EXCEPTION_31 + 1; // 0x20 master
+    const IRQ_8 = IRQ_0 + 8; // 0x28 slave
+    const IRQ_15 = IRQ_0 + 15; // 0x2F
+
+    /// this is enum for PIC port
+    pub const IRQ = enum(u4) {
+        CLOCK = 0,
+        KEYBOARD = 1,
+        CASCADE = 2,
+        SERIAL_2 = 3,
+        SERIAL_1 = 4,
+        PARALLEL_2 = 5,
+        FLOPPY = 6,
+        PARALLEL_1 = 7,
+        RTC = 8,
+        REDIRECT = 9,
+        MOUSE = 12,
+        MATH = 13,
+        HARDDISK_1 = 14,
+        HARDDISK_2 = 15,
+    };
+
+    /// initialization for pic and remap the irqs
+    /// you may confuse to this, for more, you can see this:https://wiki.osdev.org/PIC#Protected_Mode
+    fn remap() void {
+        // ICW1: start initialization sequence.
+        cpu.outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
+        cpu.outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
+
+        // ICW2: Interrupt Vector offsets of IRQs.
+        cpu.outb(PIC1_DATA, IRQ_0);
+        cpu.outb(PIC2_DATA, IRQ_8);
+
+        // ICW3: IRQ line 2 to connect master to slave PIC.
+        cpu.outb(PIC1_DATA, 1 << 2);
+        cpu.outb(PIC2_DATA, 2);
+
+        // ICW4: 80x86 mode.
+        cpu.outb(PIC1_DATA, ICW4_8086);
+        cpu.outb(PIC2_DATA, ICW4_8086);
+
+        // Mask all IRQs.
+        cpu.outb(PIC1_DATA, 0xFF);
+        cpu.outb(PIC2_DATA, 0xFF);
+    }
+
+    fn EOI(interrupt_n: u8, spurious: bool) void {
+        if (interrupt_n >= IRQ_8 and !spurious) {
+            cpu.outb(PIC2_CMD, PIC_EOI);
+        }
+        if (interrupt_n < IRQ_8 and spurious) {
+            return;
+        }
+        cpu.outb(PIC1_CMD, PIC_EOI);
+    }
+
+    fn mask_IRQ(irq: u8, mask: bool) void {
+        const port: u16 = if (irq < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
+
+        const shift: u3 = @intCast(irq % 8);
+        const current_mask = cpu.inb(port);
+
+        if (mask) {
+            cpu.outb(port, current_mask | (@as(u8, 1) << shift));
+        } else {
+            cpu.outb(port, current_mask & ~(@as(u8, 1) << shift));
+        }
+    }
+
+    /// Check whether the fired IRQ was spurious.
+    /// more: https://wiki.osdev.org/PIC#Spurious_IRQs
+    fn spurious_IRQ(irq: u8) bool {
+        if (irq != 7 and irq != 15) {
+            return false;
+        }
+
+        // default is pic1
+        var port: u16 = PIC1_CMD;
+        if (irq == 15) {
+            port = PIC2_CMD;
+        }
+
+        // read ISR
+        cpu.outb(port, ISR_READ);
+        const in_service = cpu.inb(port);
+
+        return (in_service & (1 << 7)) == 0;
+    }
+
+    pub fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
+        const irq_num = @intFromEnum(irq);
+
+        register(@intCast(IRQ_0 + irq_num), handle);
+
+        mask_IRQ(irq_num, false);
+    }
+};
+
 comptime {
     asm (
     // Template for the Interrupt Service Routines.
@@ -428,127 +552,3 @@ fn install() void {
     // syscall
     idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
 }
-
-/// this struct define allthing about PIC.
-/// more:https://wiki.osdev.org/PIC
-pub const PIC = struct {
-    /// IO base address for master PIC
-    const PIC1 = 0x20;
-    /// IO base address for slave PIC
-    const PIC2 = 0xA0;
-
-    const PIC1_CMD = PIC1;
-    const PIC1_DATA = PIC1 + 1;
-
-    const PIC2_CMD = PIC2;
-    const PIC2_DATA = PIC2 + 1;
-
-    // PIC commands:
-    /// Read the In-Service Register.
-    const ISR_READ = 0x0B;
-    /// End of Interrupt.
-    const PIC_EOI = 0x20;
-
-    // Initialization Control Words commands.
-    const ICW1_INIT = 0x10;
-    const ICW1_ICW4 = 0x01;
-    const ICW4_8086 = 0x01;
-
-    /// Interrupt Vector offsets of IRQs.
-    const IRQ_0 = EXCEPTION_31 + 1; // 0x20 master
-    const IRQ_8 = IRQ_0 + 8; // 0x28 slave
-    const IRQ_15 = IRQ_0 + 15; // 0x2F
-
-    /// this is enum for PIC port
-    pub const IRQ = enum(u4) {
-        CLOCK = 0,
-        KEYBOARD = 1,
-        CASCADE = 2,
-        SERIAL_2 = 3,
-        SERIAL_1 = 4,
-        PARALLEL_2 = 5,
-        FLOPPY = 6,
-        PARALLEL_1 = 7,
-        RTC = 8,
-        REDIRECT = 9,
-        MOUSE = 12,
-        MATH = 13,
-        HARDDISK_1 = 14,
-        HARDDISK_2 = 15,
-    };
-
-    /// initialization for pic and remap the irqs
-    /// you may confuse to this, for more, you can see this:https://wiki.osdev.org/PIC#Protected_Mode
-    fn remap() void {
-        // ICW1: start initialization sequence.
-        cpu.outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
-        cpu.outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
-
-        // ICW2: Interrupt Vector offsets of IRQs.
-        cpu.outb(PIC1_DATA, IRQ_0);
-        cpu.outb(PIC2_DATA, IRQ_8);
-
-        // ICW3: IRQ line 2 to connect master to slave PIC.
-        cpu.outb(PIC1_DATA, 1 << 2);
-        cpu.outb(PIC2_DATA, 2);
-
-        // ICW4: 80x86 mode.
-        cpu.outb(PIC1_DATA, ICW4_8086);
-        cpu.outb(PIC2_DATA, ICW4_8086);
-
-        // Mask all IRQs.
-        cpu.outb(PIC1_DATA, 0xFF);
-        cpu.outb(PIC2_DATA, 0xFF);
-    }
-
-    fn EOI(interrupt_n: u8, spurious: bool) void {
-        if (interrupt_n >= IRQ_8 and !spurious) {
-            cpu.outb(PIC2_CMD, PIC_EOI);
-        }
-        if (interrupt_n < IRQ_8 and spurious) {
-            return;
-        }
-        cpu.outb(PIC1_CMD, PIC_EOI);
-    }
-
-    fn mask_IRQ(irq: u8, mask: bool) void {
-        const port: u16 = if (irq < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
-
-        const shift: u3 = @intCast(irq % 8);
-        const current_mask = cpu.inb(port);
-
-        if (mask) {
-            cpu.outb(port, current_mask | (@as(u8, 1) << shift));
-        } else {
-            cpu.outb(port, current_mask & ~(@as(u8, 1) << shift));
-        }
-    }
-
-    /// Check whether the fired IRQ was spurious.
-    /// more: https://wiki.osdev.org/PIC#Spurious_IRQs
-    fn spurious_IRQ(irq: u8) bool {
-        if (irq != 7 and irq != 15) {
-            return false;
-        }
-
-        // default is pic1
-        var port: u16 = PIC1_CMD;
-        if (irq == 15) {
-            port = PIC2_CMD;
-        }
-
-        // read ISR
-        cpu.outb(port, ISR_READ);
-        const in_service = cpu.inb(port);
-
-        return (in_service & (1 << 7)) == 0;
-    }
-
-    pub fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
-        const irq_num = @intFromEnum(irq);
-
-        register(@intCast(IRQ_0 + irq_num), handle);
-
-        mask_IRQ(irq_num, false);
-    }
-};
