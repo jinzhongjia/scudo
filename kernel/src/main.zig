@@ -8,23 +8,17 @@ const tty = lib.tty;
 export fn _start() callconv(.C) noreturn {
 
     // 初始化tty的工作
+    // TODO: print boot time
     tty.init();
-    // tty.println("{s}", .{"Hello World!"});
-    // var boot_time = lib.boot_info.bootTimeUTC2(lib.boot_info.time_zone.CTorCST);
-    // tty.println("boot time is {d}.{d}.{d} {d}:{d}:{d}", .{
-    //     boot_time.year,
-    //     boot_time.month,
-    //     boot_time.day,
-    //     boot_time.hour,
-    //     boot_time.minute,
-    //     boot_time.second,
-    // });
     lib.idt.init();
-    asm volatile ("xchgw %bx, %bx");
-    asm volatile ("int $0x80");
+    lib.clock.init();
+    // asm volatile ("xchgw %bx, %bx");
+    // asm volatile ("int $0x80");
 
     @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }
+
+var time: u64 = 0;
 
 // 在root作用域定义一个pub panic,覆盖默认的panic
 pub const panic = tty.panic;
