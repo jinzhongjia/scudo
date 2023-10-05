@@ -79,7 +79,7 @@ fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8
 }
 
 // Interrupt Vector offsets of exceptions.
-const EXCEPTION_0 = 0;
+const EXCEPTION_0: u8 = 0;
 const EXCEPTION_31 = EXCEPTION_0 + 31;
 
 const SYSCALL = 128;
@@ -116,10 +116,35 @@ const messages = [_][]const u8{
     "--  Reserved Interrupt",
 };
 
+// this is a handlers for interrupts which are installed!
+// note: we use compile-time code to initialize an array, that 's cool
+var handlers: [48]*const fn () void = init: {
+    var initial_value: [48]*const fn () void = undefined;
+    inline for (0..48) |index| {
+        initial_value[index] = make_unhandled(index).handle;
+    }
+    break :init initial_value;
+};
+
+fn make_unhandled(comptime num: u8) type {
+    return struct {
+        fn handle() noreturn {
+            if (num >= PIC.IRQ_0) {
+                tty.panicf("Unhandled IRQ number {d}", num - PIC.IRQ_0);
+            } else {
+                tty.panicf("Unhandled exception number {d}", num);
+            }
+        }
+    };
+}
+
+pub fn register(n: u8, handler: *const fn () void) void {
+    handlers[n] = handler;
+}
+
 export fn interruptDispatch() void {
     // @panic("An exception occurred");
     const interrupt_num: u8 = @intCast(context.interrupt_num);
-    tty.println("note: the interrupt number is {d}", interrupt_num);
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
             tty.println("EXCEPTION: {s}", messages[interrupt_num]);
@@ -132,8 +157,14 @@ export fn interruptDispatch() void {
             cpu.hlt();
         },
         PIC.IRQ_0...PIC.IRQ_15 => {
-            tty.println("yes, we meet an IRQ", null);
-            PIC.EOI(interrupt_num);
+            const irq: u8 = interrupt_num - PIC.IRQ_0;
+            // when handle isr, we maybe meet spurious IRQ
+            // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
+            const spurious = PIC.spurious_IRQ(irq);
+            if (!spurious) {
+                handlers[interrupt_num]();
+            }
+            PIC.EOI(interrupt_num, spurious);
         },
         SYSCALL => {
             tty.println("yes, we meet a syscall", null);
@@ -429,7 +460,7 @@ pub const PIC = struct {
     const IRQ_15 = IRQ_0 + 15; // 0x2F
 
     /// this is enum for PIC port
-    const IRQ = enum(u4) {
+    pub const IRQ = enum(u4) {
         CLOCK = 0,
         KEYBOARD = 1,
         CASCADE = 2,
@@ -470,24 +501,26 @@ pub const PIC = struct {
         cpu.outb(PIC2_DATA, 0xFF);
     }
 
-    fn EOI(interrupt_n: u8) void {
-        if (interrupt_n >= IRQ_8) {
+    fn EOI(interrupt_n: u8, spurious: bool) void {
+        if (interrupt_n >= IRQ_8 and !spurious) {
             cpu.outb(PIC2_CMD, PIC_EOI);
+        }
+        if (interrupt_n < IRQ_8 and spurious) {
+            return;
         }
         cpu.outb(PIC1_CMD, PIC_EOI);
     }
 
     fn mask_IRQ(irq: u8, mask: bool) void {
-        const port = if (irq < 8) u16(PIC1_DATA) else u16(PIC2_DATA);
-        if (irq >= 0) {
-            irq -= 8;
-        }
+        const port: u16 = if (irq < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
+
+        const shift: u3 = @intCast(irq % 8);
         const current_mask = cpu.inb(port);
 
         if (mask) {
-            cpu.outb(port, current_mask | (1 << irq));
+            cpu.outb(port, current_mask | (@as(u8, 1) << shift));
         } else {
-            cpu.outb(port, current_mask & ~(1 << irq));
+            cpu.outb(port, current_mask & ~(@as(u8, 1) << shift));
         }
     }
 
@@ -499,7 +532,7 @@ pub const PIC = struct {
         }
 
         // default is pic1
-        var port = PIC1_CMD;
+        var port: u16 = PIC1_CMD;
         if (irq == 15) {
             port = PIC2_CMD;
         }
@@ -509,5 +542,13 @@ pub const PIC = struct {
         const in_service = cpu.inb(port);
 
         return (in_service & (1 << 7)) == 0;
+    }
+
+    pub fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
+        const irq_num = @intFromEnum(irq);
+
+        register(@intCast(IRQ_0 + irq_num), handle);
+
+        mask_IRQ(irq_num, false);
     }
 };
