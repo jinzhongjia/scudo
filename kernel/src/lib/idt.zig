@@ -424,9 +424,27 @@ pub const PIC = struct {
     const ICW4_8086 = 0x01;
 
     /// Interrupt Vector offsets of IRQs.
-    const IRQ_0 = EXCEPTION_31 + 1; // 0x20
-    const IRQ_8 = IRQ_0 + 8; // 0x28
+    const IRQ_0 = EXCEPTION_31 + 1; // 0x20 master
+    const IRQ_8 = IRQ_0 + 8; // 0x28 slave
     const IRQ_15 = IRQ_0 + 15; // 0x2F
+
+    /// this is enum for PIC port
+    const IRQ = enum(u4) {
+        CLOCK = 0,
+        KEYBOARD = 1,
+        CASCADE = 2,
+        SERIAL_2 = 3,
+        SERIAL_1 = 4,
+        PARALLEL_2 = 5,
+        FLOPPY = 6,
+        PARALLEL_1 = 7,
+        RTC = 8,
+        REDIRECT = 9,
+        MOUSE = 12,
+        MATH = 13,
+        HARDDISK_1 = 14,
+        HARDDISK_2 = 15,
+    };
 
     /// initialization for pic and remap the irqs
     /// you may confuse to this, for more, you can see this:https://wiki.osdev.org/PIC#Protected_Mode
