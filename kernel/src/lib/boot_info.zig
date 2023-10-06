@@ -106,7 +106,6 @@ pub fn bootTime2UTC() Time {
     minute = @intCast(secs / SEC_PER_MIN);
     //这个时间戳的秒钟数。
     second = @intCast(secs % SEC_PER_MIN);
-    tty.println("second is {d}", .{secs});
 
     return Time{
         .year = year,
