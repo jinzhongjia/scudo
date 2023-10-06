@@ -12,6 +12,7 @@ export fn _start() callconv(.C) noreturn {
     tty.init();
     lib.idt.init();
     lib.clock.init();
+    lib.sound.init();
     // asm volatile ("xchgw %bx, %bx");
     // asm volatile ("int $0x80");
 

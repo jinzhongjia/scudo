@@ -289,7 +289,7 @@ pub const PIC = struct {
         cpu.outb(PIC1_CMD, PIC_EOI);
     }
 
-    fn mask_IRQ(irq: u8, mask: bool) void {
+    pub fn mask_IRQ(irq: u8, mask: bool) void {
         const port: u16 = if (irq < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
 
         const shift: u3 = @intCast(irq % 8);
@@ -322,6 +322,7 @@ pub const PIC = struct {
         return (in_service & (1 << 7)) == 0;
     }
 
+    /// register handle for IRA, this will auto unmask
     pub fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
         const irq_num = @intFromEnum(irq);
 
