@@ -121,12 +121,12 @@ const messages = [_][]const u8{
 var handlers: [48]*const fn () void = init: {
     var initial_value: [48]*const fn () void = undefined;
     inline for (0..48) |index| {
-        initial_value[index] = make_unhandled(index).handle;
+        initial_value[index] = make_unhandled(index);
     }
     break :init initial_value;
 };
 
-fn make_unhandled(comptime num: u8) type {
+fn make_unhandled(comptime num: u8) fn () noreturn {
     return struct {
         fn handle() noreturn {
             if (num >= PIC.IRQ_0) {
@@ -135,7 +135,7 @@ fn make_unhandled(comptime num: u8) type {
                 tty.panicf("Unhandled exception number {d}", num);
             }
         }
-    };
+    }.handle;
 }
 
 pub fn register(n: u8, handler: *const fn () void) void {
