@@ -1,4 +1,4 @@
-pub const std = @import("lib/std.zig");
+pub const std = @import("lib/stdlib.zig");
 pub const tty = @import("lib/tty.zig");
 pub const boot_info = @import("lib/boot_info.zig");
 pub const config = @import("lib/config.zig");
