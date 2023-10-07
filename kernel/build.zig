@@ -23,7 +23,7 @@ pub fn build(b: *std.build.Builder) !void {
     const limine = b.dependency("limine", .{});
     const kernel = b.addExecutable(.{
         .name = "kernel",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "src/start.zig" },
         .target = target,
         .optimize = optimize,
     });

@@ -36,7 +36,6 @@ pub const PC_SPEAKER = struct {
     }
 };
 
-//
 // var counter: u8 = 0;
 // var enable = false;
 // fn speaker_handle() void {
