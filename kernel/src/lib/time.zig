@@ -1,5 +1,6 @@
 const cpu = @import("../cpu.zig");
 const stdlib = @import("stdlib.zig");
+const tty = @import("tty.zig");
 
 // !!!!
 // We assume that CMOS does not change during system operation
@@ -36,7 +37,6 @@ pub const Time = struct {
 /// Acorring to osdev, CMOS can provide time for us
 /// https://wiki.osdev.org/CMOS
 const CMOS = struct {
-    
     var is_24_hour = true;
     var is_BCD = false;
 
@@ -80,6 +80,7 @@ const CMOS = struct {
         var day: u8 = undefined;
         var month: u8 = undefined;
         var year: u16 = undefined;
+        var century: u16 = undefined;
 
         while (is_update()) {}
 
@@ -90,6 +91,7 @@ const CMOS = struct {
             day = cmos_read(CMOS_DAY);
             month = cmos_read(CMOS_MONTH);
             year = cmos_read(CMOS_YEAR);
+            century = cmos_read(CMOS_CENTURY);
 
             while (cmos_read(CMOS_SECOND) != second) {
                 second = cmos_read(CMOS_SECOND);
@@ -98,7 +100,9 @@ const CMOS = struct {
                 day = cmos_read(CMOS_DAY);
                 month = cmos_read(CMOS_MONTH);
                 year = cmos_read(CMOS_YEAR);
+
                 // TODO: read century register
+                century = cmos_read(CMOS_CENTURY);
             }
         }
 
@@ -110,6 +114,7 @@ const CMOS = struct {
             day = stdlib.bcd_to_integer(day);
             month = stdlib.bcd_to_integer(month);
             year = stdlib.bcd_to_integer(@intCast(year));
+            century = stdlib.bcd_to_integer(@intCast(century));
         }
 
         if (!is_24_hour) {
@@ -122,7 +127,7 @@ const CMOS = struct {
             .hour = hour,
             .day = day,
             .month = month,
-            .year = year,
+            .year = century * 100 + year,
         };
     }
 };

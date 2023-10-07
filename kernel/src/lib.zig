@@ -7,4 +7,3 @@ pub const task = @import("lib/task.zig");
 pub const clock = @import("lib/clock.zig");
 pub const sound = @import("lib/sound.zig");
 pub const time = @import("lib/time.zig");
-pub const rtc = @import("lib/rtc.zig");
