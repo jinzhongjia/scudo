@@ -1,5 +1,8 @@
 const limine = @import("limine");
 const tty = @import("tty.zig");
+const time = @import("time.zig");
+
+const Time = time.Time;
 
 pub export var boot_time_request: limine.BootTimeRequest = .{};
 
@@ -20,16 +23,8 @@ const SEC_PER_MIN = 60;
 
 const days_per_mon = [MONTH_PER_YEAR]u8{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-const Time = struct {
-    year: u32,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    second: u8,
-};
 
-fn is_leap_year(year: u32) bool {
+fn is_leap_year(year: u16) bool {
     if (year % 400 == 0) {
         return true;
     } else if (year % 100 == 0) {
@@ -40,7 +35,7 @@ fn is_leap_year(year: u32) bool {
     return false;
 }
 
-fn get_days_per_month(month: u8, year: u32) u8 {
+fn get_days_per_month(month: u8, year: u16) u8 {
     if (month > 12) {
         @panic("month is not correct");
     }
@@ -56,7 +51,7 @@ fn get_days_per_month(month: u8, year: u32) u8 {
 
 pub fn bootTime2UTC() Time {
     var timeStamp = bootTimeStamp();
-    var year: u32 = 0;
+    var year: u16 = 0;
     var month: u8 = 0;
     var day: u8 = 0;
     var hour: u8 = 0;
@@ -68,7 +63,7 @@ pub fn bootTime2UTC() Time {
     var dayTmp: u32 = 0;
 
     {
-        var yearTmp: u32 = 0;
+        var yearTmp: u16 = 0;
         yearTmp = UTC_BASE_YEAR;
         while (days > 0) {
             dayTmp = if (is_leap_year(yearTmp)) DAY_PER_YEAR + 1 else DAY_PER_YEAR;
@@ -121,7 +116,7 @@ pub const time_zone = enum(i8) { IDLW = -12, CTorCST = 8 };
 
 pub fn bootTimeUTC2(zone: time_zone) Time {
     var UTC_time = bootTime2UTC();
-    var year: u32 = undefined;
+    var year: u16 = undefined;
     var month: u8 = undefined;
     var day: u8 = undefined;
     var hour: u8 = @intCast(@as(i8, @intCast(UTC_time.hour)) + @intFromEnum(zone));
