@@ -33,7 +33,10 @@ pub const Time = struct {
     year: u16,
 };
 
+/// Acorring to osdev, CMOS can provide time for us
+/// https://wiki.osdev.org/CMOS
 const CMOS = struct {
+    
     var is_24_hour = true;
     var is_BCD = false;
 
