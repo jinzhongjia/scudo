@@ -10,7 +10,7 @@ pub fn main() noreturn {
     // asm volatile ("xchgw %bx, %bx");
     // asm volatile ("int $0x80");
 
-    var boot_time = lib.boot_info.bootTimeUTC2(lib.boot_info.time_zone.CTorCST);
+    var boot_time = lib.time.UTC2(lib.boot_info.bootTime2UTC(), lib.time.TIME_ZONE.CTorCST);
     println("boot time is {}-{}-{} {}:{}:{}", .{
         boot_time.year,
         boot_time.month,
@@ -19,7 +19,7 @@ pub fn main() noreturn {
         boot_time.minute,
         boot_time.second,
     });
-    var time = lib.time.time_read();
+    var time = lib.time.nowTime();
     println("now time is {}-{}-{} {}:{}:{}", .{
         time.year,
         time.month,
