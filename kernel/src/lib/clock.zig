@@ -2,8 +2,6 @@ const cpu = @import("../cpu.zig");
 const config = @import("./config.zig");
 const idt = @import("idt.zig");
 
-const PIC = idt.PIC;
-
 pub fn init() void {
     PIT.init();
 }
@@ -34,6 +32,6 @@ pub const PIT = struct {
     }
 
     pub fn register_handle(handle: *const fn () void) void {
-        PIC.registerIRQ(PIC.IRQ.CLOCK, handle);
+        idt.Register_IRQ(idt.IRQ_ENUM.CLOCK, handle);
     }
 };

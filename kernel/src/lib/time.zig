@@ -1,5 +1,7 @@
 const cpu = @import("../cpu.zig");
 const stdlib = @import("stdlib.zig");
+const tty = @import("tty.zig");
+const idt = @import("idt.zig");
 
 // !!!!
 // We assume that CMOS does not change during system operation
@@ -20,6 +22,8 @@ pub fn init() void {
     if (register_b & 0x02 == 0) {
         CMOS.is_24_hour = false;
     }
+
+    RTC.init();
 }
 
 pub const nowTime = CMOS.time_read;
@@ -36,7 +40,6 @@ pub const Time = struct {
 /// Acorring to osdev, CMOS can provide time for us
 /// https://wiki.osdev.org/CMOS
 const CMOS = struct {
-    
     var is_24_hour = true;
     var is_BCD = false;
 
@@ -47,18 +50,22 @@ const CMOS = struct {
     const CMOS_NMI = 0x80;
 
     const CMOS_SECOND = 0x00;
+    const CMOS_ALARM_SECOND = 0x01;
     const CMOS_MINUTE = 0x02;
+    const CMOS_ALARM_MINUTE = 0x03;
     const CMOS_HOUR = 0x04;
+    const CMOS_ALARM_HOUR = 0x05;
     const CMOS_WEEKDAY = 0x06; // Accorrding to osdev,weekday register is unreliable, we should not use it.
     const CMOS_DAY = 0x07;
     const CMOS_MONTH = 0x08;
     const CMOS_YEAR = 0x09;
-    const CMOS_CENTURY = 0x32;
 
     const CMOS_A = 0x0a;
     const CMOS_B = 0x0b;
     const CMOS_C = 0x0c;
     const CMOS_D = 0x0d;
+
+    const CMOS_CENTURY = 0x32;
 
     // for read information:
     // https://wiki.osdev.org/CMOS#Accessing_CMOS_Registers
@@ -67,10 +74,14 @@ const CMOS = struct {
         return cpu.inb(CMOS_DATA);
     }
 
+    fn cmos_write(addr: u8, value: u8) void {
+        cpu.outb(CMOS_ADDR, CMOS_NMI | addr);
+        cpu.outb(CMOS_DATA, value);
+    }
+
     // Query the A register to obtain whether the current CMOS is updating the time
     fn is_update() bool {
-        cpu.outb(CMOS_ADDR, CMOS_A);
-        return (cpu.inb(CMOS_DATA) >> 7 == 1);
+        return cmos_read(CMOS_A) >> 7 == 1;
     }
 
     fn time_read() Time {
@@ -80,6 +91,7 @@ const CMOS = struct {
         var day: u8 = undefined;
         var month: u8 = undefined;
         var year: u16 = undefined;
+        var century: u16 = undefined;
 
         while (is_update()) {}
 
@@ -90,6 +102,7 @@ const CMOS = struct {
             day = cmos_read(CMOS_DAY);
             month = cmos_read(CMOS_MONTH);
             year = cmos_read(CMOS_YEAR);
+            century = cmos_read(CMOS_CENTURY);
 
             while (cmos_read(CMOS_SECOND) != second) {
                 second = cmos_read(CMOS_SECOND);
@@ -98,7 +111,7 @@ const CMOS = struct {
                 day = cmos_read(CMOS_DAY);
                 month = cmos_read(CMOS_MONTH);
                 year = cmos_read(CMOS_YEAR);
-                // TODO: read century register
+                century = cmos_read(CMOS_CENTURY);
             }
         }
 
@@ -110,6 +123,7 @@ const CMOS = struct {
             day = stdlib.bcd_to_integer(day);
             month = stdlib.bcd_to_integer(month);
             year = stdlib.bcd_to_integer(@intCast(year));
+            century = stdlib.bcd_to_integer(@intCast(century));
         }
 
         if (!is_24_hour) {
@@ -122,7 +136,7 @@ const CMOS = struct {
             .hour = hour,
             .day = day,
             .month = month,
-            .year = year,
+            .year = century * 100 + year,
         };
     }
 };
@@ -257,3 +271,71 @@ pub fn UTC2(UTC_time: Time, zone: TIME_ZONE) Time {
         .second = UTC_time.second,
     };
 }
+
+/// real time clock
+/// more: https://wiki.osdev.org/RTC#Programming_the_RTC
+/// this module depends on PIT!!!
+/// RTC can implement feature like PIT, but we usually use RTC as an alarm, about why not use RTC for clock?
+/// https://wiki.osdev.org/RTC#IRQ_Danger
+/// note: write value to CMOS register is very dangerous. (except RTC)
+/// according to:https://wiki.osdev.org/CMOS#Checksums
+const RTC = struct {
+    fn init() void {
+        // set Register CMOS_A frequence zero(No interrupt will be issued).
+        CMOS.cmos_write(CMOS.CMOS_A, (cpu.inb(CMOS.CMOS_A) & 0xf) | 0b0000);
+
+        // enable alarm and Periodic Interrupt and update-end interrupt
+        // TODO: enable update end interrupt
+        CMOS.cmos_write(CMOS.CMOS_B, cpu.inb(CMOS.CMOS_B) | 0b0110_0000);
+
+        // clear interrupt flags, Allow subsequent interrupts to arrive
+        _ = CMOS.cmos_read(CMOS.CMOS_C);
+
+        // set_alarm_time(2);
+
+        // register handle for RTC interrupt
+        idt.Register_IRQ(idt.IRQ_ENUM.RTC, interrupt_handle);
+        // unmask IRQ_CASCADE, id is 2
+        idt.Mask_IRQ(idt.IRQ_ENUM.CASCADE, false);
+    }
+
+    fn set_alarm_time(secs_value: u32) void {
+        var secs_tmp = secs_value;
+
+        var secs: u8 = @intCast(secs_tmp % 60);
+        secs_tmp /= 60;
+
+        var minute: u8 = @intCast(secs_tmp % 60);
+        secs_tmp /= 60;
+
+        var hour: u32 = secs_tmp;
+
+        var now_time = nowTime();
+
+        now_time.second += secs;
+        if (now_time.second >= 60) {
+            now_time.second %= 60;
+            now_time.minute += 1;
+        }
+
+        now_time.minute += minute;
+        if (now_time.minute >= 60) {
+            now_time.minute %= 60;
+            now_time.hour += 1;
+        }
+
+        now_time.hour = @intCast((now_time.hour + hour) % 24);
+
+        CMOS.cmos_write(CMOS.CMOS_ALARM_SECOND, stdlib.integer_to_bcd(now_time.second));
+        CMOS.cmos_write(CMOS.CMOS_ALARM_MINUTE, stdlib.integer_to_bcd(now_time.minute));
+        CMOS.cmos_write(CMOS.CMOS_ALARM_HOUR, stdlib.integer_to_bcd(now_time.hour));
+    }
+
+    fn interrupt_handle() void {
+        // TODO: 实现具体的定时处理逻辑
+        var status = CMOS.cmos_read(CMOS.CMOS_C);
+        tty.println("alarm has been triggered, status: 0b{b:0>8}", status);
+
+        set_alarm_time(2);
+    }
+};

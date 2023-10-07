@@ -19,6 +19,7 @@ pub fn main() noreturn {
         boot_time.minute,
         boot_time.second,
     });
+
     var time = lib.time.nowTime();
     println("now time is {}-{}-{} {}:{}:{}", .{
         time.year,
@@ -28,5 +29,6 @@ pub fn main() noreturn {
         time.minute,
         time.second,
     });
+
     @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }
