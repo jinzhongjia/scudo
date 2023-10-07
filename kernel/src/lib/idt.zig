@@ -3,6 +3,10 @@
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 
+pub const IRQ_ENUM = PIC.IRQ;
+pub const Mask_IRQ = PIC.mask_IRQ;
+pub const Register_IRQ = PIC.registerIRQ;
+
 pub fn init() void {
     // We set up the entire idt here to prevent unknown problems.
     inline for (0..idt.len) |index| {
@@ -145,6 +149,9 @@ pub fn register(n: u8, handler: *const fn () void) void {
 export fn interruptDispatch() void {
     // @panic("An exception occurred");
     const interrupt_num: u8 = @intCast(context.interrupt_num);
+
+    // tty.println("interrupt num is {}", interrupt_num);
+
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
             tty.println("EXCEPTION: {s}", messages[interrupt_num]);
@@ -209,7 +216,7 @@ pub const Registers = packed struct {
 
 /// this struct define allthing about PIC.
 /// more:https://wiki.osdev.org/PIC
-pub const PIC = struct {
+const PIC = struct {
     /// IO base address for master PIC
     const PIC1 = 0x20;
     /// IO base address for slave PIC
@@ -238,7 +245,7 @@ pub const PIC = struct {
     const IRQ_15 = IRQ_0 + 15; // 0x2F
 
     /// this is enum for PIC port
-    pub const IRQ = enum(u4) {
+    const IRQ = enum(u4) {
         CLOCK = 0,
         KEYBOARD = 1,
         CASCADE = 2,
@@ -289,10 +296,11 @@ pub const PIC = struct {
         cpu.outb(PIC1_CMD, PIC_EOI);
     }
 
-    pub fn mask_IRQ(irq: u8, mask: bool) void {
-        const port: u16 = if (irq < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
+    fn mask_IRQ(irq: IRQ, mask: bool) void {
+        const irq_num = @intFromEnum(irq);
+        const port: u16 = if (irq_num < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
 
-        const shift: u3 = @intCast(irq % 8);
+        const shift: u3 = @intCast(irq_num % 8);
         const current_mask = cpu.inb(port);
 
         if (mask) {
@@ -323,12 +331,12 @@ pub const PIC = struct {
     }
 
     /// register handle for IRA, this will auto unmask
-    pub fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
+    fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
         const irq_num = @intFromEnum(irq);
 
         register(@intCast(IRQ_0 + irq_num), handle);
 
-        mask_IRQ(irq_num, false);
+        mask_IRQ(irq, false);
     }
 };
 
