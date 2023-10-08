@@ -182,5 +182,8 @@ pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
         fmt.format(writer, format, .{args}) catch {};
     }
 
-    cpu.hlt();
+    while (true) {}
+
+    // The code will not go here, otherwise an error will occur
+    asm volatile ("ud2");
 }
