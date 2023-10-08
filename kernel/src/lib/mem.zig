@@ -88,7 +88,7 @@ pub const P_MEM = struct {
                 map_index += 1;
             }
         }
-        @panic("allocate_page fails!");
+        unreachable;
     }
 
     pub fn free_page(addr: usize) void {
