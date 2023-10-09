@@ -61,8 +61,6 @@ pub const P_MEM = struct {
 
             @memset(memory_map[memory_map_self_index .. memory_map_self_index + memmap_pages], 1);
         }
-
-        // tty.println("total pages is {}, free pages is {}", .{ total_pages, free_pages });
     }
 
     fn map_index_to_addr(index: u64) usize {
