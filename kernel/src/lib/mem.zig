@@ -110,3 +110,29 @@ pub const P_MEM = struct {
         memory_map[map_index] = 0;
     }
 };
+
+const PAGE = struct {
+
+    //
+    // 9 bit PML4I (page map level 4 index)	9 bit PDPTI (page directory pointer table index)	9 bit PDI (page directory index)	9 bit PTI (page table index)	12 bit offset
+
+    fn PML4I(addr: u64) u9 {
+        return (addr >> (9 + 9 + 9 + 12)) & 0x1ff;
+    }
+
+    fn PDPTI(addr: u64) u9 {
+        return (addr >> (9 + 9 + 12)) & 0x1ff;
+    }
+
+    fn PDI(addr: u64) u9 {
+        return (addr >> (9 + 12)) & 0x1ff;
+    }
+
+    fn PTI(addr: u64) u9 {
+        return (addr >> 12) & 0x1ff;
+    }
+
+    fn OFFSET(addr: u64) u12 {
+        return addr & 0xfff;
+    }
+};
