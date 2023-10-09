@@ -22,15 +22,13 @@ pub inline fn sti() void {
     asm volatile ("sti");
 }
 
-////
-// Read a byte from a port.
-//
-// Arguments:
-//     port: Port from where to read.
-//
-// Returns:
-//     The read byte.
-//
+/// Read a byte from a port.
+///
+/// Arguments:
+///     port: Port from where to read.
+///
+/// Returns:
+///     The read byte.
 pub inline fn inb(port: u16) u8 {
     return asm volatile ("inb %[port], %[result]"
         : [result] "={al}" (-> u8),
@@ -38,13 +36,11 @@ pub inline fn inb(port: u16) u8 {
     );
 }
 
-////
-// Write a byte on a port.
-//
-// Arguments:
-//     port: Port where to write the value.
-//     value: Value to be written.
-//
+/// Write a byte on a port.
+///
+/// Arguments:
+///     port: Port where to write the value.
+///     value: Value to be written.
 pub inline fn outb(port: u16, value: u8) void {
     asm volatile ("outb %[value], %[port]"
         :
@@ -56,4 +52,16 @@ pub inline fn outb(port: u16, value: u8) void {
 /// just for debug
 pub inline fn debug() void {
     asm volatile ("xchgw %bx, %bx");
+}
+
+/// Invalidate the TLB entry associated with the given virtual address.
+///
+/// Arguments:
+///     v_addr: Virtual address to invalidate.
+pub inline fn invlpg(v_addr: usize) void {
+    asm volatile ("invlpg (%[v_addr])"
+        :
+        : [v_addr] "r" (v_addr),
+        : "memory"
+    );
 }
