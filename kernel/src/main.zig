@@ -17,7 +17,7 @@ pub fn main() noreturn {
     @panic("Note:This is an experimental project!\nWe're done, just hang...");
 }
 
-// this is a test function for kernel
+/// this is a test function for kernel
 fn test_kernel() void {
     var tmp = lib.mem.P_MEM.allocate_page();
     if (tmp != 0) {

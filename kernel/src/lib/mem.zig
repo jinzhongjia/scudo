@@ -135,4 +135,20 @@ const PAGE = struct {
     fn OFFSET(addr: u64) u12 {
         return addr & 0xfff;
     }
+
+    const PageEntry = packed struct {
+        present: u1,
+        writeable: u1,
+        user_access: u1,
+        write_through: u1,
+        disable_cache: u1,
+        accessed: u1,
+        dirty: u1,
+        size: u1, // must be 0
+        global: u1,
+        available: u3,
+        physical_addr: u40,
+        ignored_1: u11,
+        execution_disabled: u1,
+    };
 };
