@@ -136,19 +136,69 @@ const PAGE = struct {
         return addr & 0xfff;
     }
 
-    const PageEntry = packed struct {
+    const PageMapLevel4Entry = packed struct {
         present: u1,
         writeable: u1,
         user_access: u1,
         write_through: u1,
-        disable_cache: u1,
+        cache_disabled: u1,
+        accessed: u1,
+        ignored_1: u1,
+        reserved_1: u1,
+        ignored_2: u3,
+        HLAT: u1,
+        paddr: u40,
+        ignored_3: u11,
+        execute_disable: u1,
+    };
+
+    const PageDirPointerTablePageDirEntry = packed struct {
+        present: u1,
+        writeable: u1,
+        user_access: u1,
+        write_through: u1,
+        cache_disabled: u1,
+        accessed: u1,
+        ignored_1: u1,
+        page_size: u1, // must be 0
+        ignored_2: u3,
+        HLAT: u1,
+        paddr: u40,
+        ignored_3: u11,
+        execute_disable: u1,
+    };
+
+    const PageDirPageTableEntry = packed struct {
+        present: u1,
+        writeable: u1,
+        user_access: u1,
+        write_through: u1,
+        cache_disabled: u1,
+        accessed: u1,
+        ignored_1: u1,
+        page_size: u1, // must be 0
+        ignored_2: u3,
+        HLAT: u1,
+        paddr: u40,
+        ignored_3: u11,
+        execute_disable: u1,
+    };
+
+    const PageTableEntry = packed struct {
+        present: u1,
+        writeable: u1,
+        user_access: u1,
+        write_through: u1,
+        cache_disabled: u1,
         accessed: u1,
         dirty: u1,
-        size: u1, // must be 0
+        PAT: u1,
         global: u1,
-        available: u3,
-        physical_addr: u40,
-        ignored_1: u11,
-        execution_disabled: u1,
+        ignored_1: u3,
+        HLAT: u1,
+        paddr: u40,
+        ignored_2: u7,
+        protection: u4, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
+        execute_disable: u1,
     };
 };
