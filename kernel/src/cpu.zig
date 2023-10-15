@@ -73,6 +73,9 @@ const CPUID = extern struct {
     ecx: u32,
 };
 
+// NOTE:the MAXPHYADDR which is gaven by bochs and qemu is 40, that's a terrabyt.
+//maybe we need more to write to the address
+
 pub inline fn cpuid(leaf: u32) CPUID {
     var eax: u32 = undefined;
     var ebx: u32 = undefined;
