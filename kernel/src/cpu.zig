@@ -98,3 +98,25 @@ pub inline fn cpuid(leaf: u32) CPUID {
         .ecx = ecx,
     };
 }
+
+/// read cr2 register
+pub inline fn readCR2() usize {
+    return asm volatile ("mov %%cr2, %[result]"
+        : [result] "=r" (-> usize),
+    );
+}
+
+/// write to cr3 register
+pub inline fn writeCR3(pd: usize) void {
+    asm volatile ("mov %[pd], %%cr3"
+        :
+        : [pd] "r" (pd),
+    );
+}
+
+/// read cr2 register
+pub inline fn readCR3() usize {
+    return asm volatile ("mov %%cr3, %[result]"
+        : [result] "=r" (-> usize),
+    );
+}
