@@ -19,13 +19,14 @@ pub fn main() noreturn {
 
 /// this is a test function for kernel
 fn test_kernel() void {
-    var tmp = lib.mem.P_MEM.allocate_page();
-    if (tmp != 0) {
-        println("allocate physical memory, addr is: 0x{x}", tmp);
-        lib.mem.P_MEM.free_page(tmp);
-    } else {
-        println("allocate memory fails", null);
-    }
+    // var tmp = lib.mem.P_MEM.allocate_page();
+    // if (tmp != 0) {
+    //     println("allocate physical memory, addr is: 0x{x}", tmp);
+    //     lib.mem.P_MEM.free_page(tmp);
+    // } else {
+    //     println("allocate memory fails", null);
+    // }
+
     // var boot_time = lib.time.UTC2(lib.boot_info.bootTime2UTC(), lib.time.TIME_ZONE.CTorCST);
     // println("boot time is {}-{}-{} {}:{}:{}", .{
     //     boot_time.year,
