@@ -14,21 +14,23 @@ pub var pitch: u64 = undefined;
 
 /// 必须要先执行该函数再使用导出的变量！！！
 pub fn init() void {
-    var response = framebuffer_request.response;
+    if (framebuffer_request.response) |response| {
+        const framerbuffers = response.framebuffers();
 
-    const framerbuffers = response.?.framebuffers();
+        const framebuffer = framerbuffers[0];
 
-    const framebuffer = framerbuffers[0];
+        address = framebuffer.address;
 
-    address = framebuffer.address;
+        width = framebuffer.width;
 
-    width = framebuffer.width;
+        height = framebuffer.height;
 
-    height = framebuffer.height;
+        pixelwidth = framebuffer.bpp / 8;
 
-    pixelwidth = framebuffer.bpp / 8;
-
-    pitch = framebuffer.pitch;
+        pitch = framebuffer.pitch;
+    } else {
+        unreachable;
+    }
 }
 
 // frambebuffer的条目，每个像素点的内存结构
