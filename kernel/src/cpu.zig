@@ -120,3 +120,7 @@ pub inline fn readCR3() usize {
         : [result] "=r" (-> usize),
     );
 }
+
+pub inline fn get_PML4() usize {
+    return readCR3() & 0xfffffffffffff000;
+}
