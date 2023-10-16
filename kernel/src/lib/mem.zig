@@ -1,12 +1,15 @@
 const limine = @import("limine");
 const tty = @import("tty.zig");
+const cpu = @import("../cpu.zig");
 
 const PAGE_SIZE = 0x1000;
 
 export var limine_mem_map: limine.MemoryMapRequest = .{};
+export var limine_HHDM: limine.HhdmRequest = .{};
 
 pub fn init() void {
     P_MEM.init();
+    V_MEM.init();
 }
 
 pub const P_MEM = struct {
@@ -111,7 +114,22 @@ pub const P_MEM = struct {
     }
 };
 
-const PAGE = struct {
+const V_MEM = struct {
+    var PML4: *[512]PageMapLevel4Entry = undefined;
+
+    fn init() void {
+        // in this scopr, we find the limine PML4, and convert it to virtual address
+        // then we can easily control it
+        {
+            if (limine_HHDM.response) |response| {
+                var PML4_paddr = cpu.get_PML4();
+                var PML4_ptr = PML4_paddr + response.offset;
+                PML4 = @ptrFromInt(PML4_ptr);
+            } else {
+                @panic("get HHDM response fails");
+            }
+        }
+    }
 
     //
     // 9 bit PML4I (page map level 4 index)	9 bit PDPTI (page directory pointer table index)	9 bit PDI (page directory index)	9 bit PTI (page table index)	12 bit offset
