@@ -3,7 +3,7 @@ const tty = @import("tty.zig");
 
 const PAGE_SIZE = 0x1000;
 
-pub export var limine_mem_map: limine.MemoryMapRequest = .{};
+export var limine_mem_map: limine.MemoryMapRequest = .{};
 
 pub fn init() void {
     P_MEM.init();

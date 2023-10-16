@@ -1,7 +1,7 @@
 const limine = @import("limine");
 const config = @import("lib.zig").config;
 
-pub export var stack_size_request: limine.StackSizeRequest = .{
+export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
 };
 

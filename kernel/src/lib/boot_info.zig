@@ -4,7 +4,7 @@ const time = @import("time.zig");
 
 const Time = time.Time;
 
-pub export var boot_time_request: limine.BootTimeRequest = .{};
+export var boot_time_request: limine.BootTimeRequest = .{};
 
 fn bootTimeStamp() i64 {
     if (boot_time_request.response) |response| {

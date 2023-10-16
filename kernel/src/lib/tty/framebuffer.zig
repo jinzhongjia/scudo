@@ -1,6 +1,6 @@
 const limine = @import("limine");
 
-pub export var framebuffer_request: limine.FramebufferRequest = .{};
+export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub var address: [*]u8 = undefined;
 

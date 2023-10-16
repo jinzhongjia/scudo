@@ -181,7 +181,7 @@ export fn interruptDispatch() void {
     }
 }
 
-pub export var context: *volatile Context = undefined;
+export var context: *volatile Context = undefined;
 
 pub const Context = packed struct {
     // we will manually push register
