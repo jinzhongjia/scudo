@@ -161,7 +161,7 @@ export fn interruptDispatch() void {
             tty.println("       CS: 0x{x:0>2}", context.cs);
             tty.println("      RIP: 0x{x}", context.rip);
             tty.println("      RSP: 0x{x}", context.rsp);
-            cpu.hlt();
+            handlers[interrupt_num]();
         },
         PIC.IRQ_0...PIC.IRQ_15 => {
             const irq: u8 = interrupt_num - PIC.IRQ_0;
@@ -181,15 +181,16 @@ export fn interruptDispatch() void {
     }
 }
 
-export var context: *volatile Context = undefined;
+pub export var context: *volatile Context = undefined;
 
-pub const Context = packed struct {
+const Context = packed struct {
     // we will manually push register
     registers: Registers,
     // this will be pushed by macro isrGenerate
     interrupt_num: u64,
     // this will be pushed by macro isrGenerate
     error_code: u64, // note: error_code will only be pushed by hardware interrupt
+    // In Long Mode, the error code is padded with zeros to form a 64-bit push, so that it can be popped like any other value.
 
     // CPU status
     // more you can see:

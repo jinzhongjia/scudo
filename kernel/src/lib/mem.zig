@@ -1,4 +1,5 @@
 const limine = @import("limine");
+const idt = @import("idt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 
@@ -117,6 +118,10 @@ pub const P_MEM = struct {
 const V_MEM = struct {
     var PML4: *[512]PageMapLevel4Entry = undefined;
 
+    const PDPT = *[512]PageDirPointerTableEntry;
+    const PDT = *[512]PageDirTableEntry;
+    const PT = *[512]PageTableEntry;
+
     fn init() void {
         // in this scopr, we find the limine PML4, and convert it to virtual address
         // then we can easily control it
@@ -135,6 +140,27 @@ const V_MEM = struct {
                 @panic("get HHDM response fails");
             }
         }
+
+        idt.register(14, pageFault);
+    }
+
+    fn pageFault() noreturn {
+        const interrupt_context = idt.context;
+        const address = cpu.readCR2();
+        var code: *ERROR_CODE = @ptrCast(@volatileCast(&interrupt_context.error_code));
+
+        tty.panicf(
+            \\PAGE FAULT
+            \\ address:     0x{x}
+            \\ error:       {s}
+            \\ operation:   {s}
+            \\ privilege:   {s}
+        , .{
+            address,
+            if (code.present == 1) "protection" else "none present",
+            if (code.write == 1) "write" else "read",
+            if (code.user == 1) "user" else "kernel",
+        });
     }
 
     //
@@ -148,7 +174,7 @@ const V_MEM = struct {
         return @truncate((addr >> (9 + 9 + 12)) & 0x1ff);
     }
 
-    pub fn PDI(addr: u64) u9 {
+    pub fn PDTI(addr: u64) u9 {
         return @truncate((addr >> (9 + 12)) & 0x1ff);
     }
 
@@ -176,7 +202,7 @@ const V_MEM = struct {
         execute_disable: u1,
     };
 
-    const PageDirPointerTablePageDirEntry = packed struct {
+    const PageDirPointerTableEntry = packed struct {
         present: u1,
         writeable: u1,
         user_access: u1,
@@ -192,7 +218,7 @@ const V_MEM = struct {
         execute_disable: u1,
     };
 
-    const PageDirPageTableEntry = packed struct {
+    const PageDirTableEntry = packed struct {
         present: u1,
         writeable: u1,
         user_access: u1,
@@ -224,5 +250,33 @@ const V_MEM = struct {
         ignored_2: u7,
         protection: u4, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
         execute_disable: u1,
+    };
+
+    /// Can only be used when a page fault occurs
+    const ERROR_CODE = packed struct {
+        // When set, the page fault was caused by a page-protection violation. When not set, it was caused by a non-present page.
+        present: u1,
+        // When set, the page fault was caused by a write access. When not set, it was caused by a read access.
+        write: u1,
+        // When set, the page fault was caused while CPL = 3. This does not necessarily mean that the page fault was a privilege violation.
+        user: u1,
+        // When set, one or more page directory entries contain reserved bits which are set to 1. This only applies when the PSE or PAE flags in CR4 are set to 1.
+        reserved_write: u1,
+        // When set, the page fault was caused by an instruction fetch. This only applies when the No-Execute bit is supported and enabled.
+        instruction_fetch: u1,
+        // When set, the page fault was caused by a protection-key violation. The PKRU register (for user-mode accesses) or PKRS MSR (for supervisor-mode accesses) specifies the protection key rights
+        protection: u1,
+        // When set, the page fault was caused by a shadow stack access.
+        shadow_stack: u1,
+        // when set, the page fault was caused during HLAT paging.
+        HALT: u1,
+        // reserved to zero
+        reserved_1: u7,
+        // when set, the page fault was related to SGX.
+        // A pivot by Intel in 2021 resulted in the deprecation of SGX from the 11th and 12th generation Intel Core Processors, but development continues on Intel Xeon for cloud and enterprise use.
+        SGX: u1,
+        // reserved to zero
+        reserved_2: u16,
+        zero_padding: u32,
     };
 };
