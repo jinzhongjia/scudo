@@ -125,6 +125,12 @@ const V_MEM = struct {
                 var PML4_paddr = cpu.get_PML4();
                 var PML4_ptr = PML4_paddr + response.offset;
                 PML4 = @ptrFromInt(PML4_ptr);
+                {
+                    // remap memory_map to high address
+                    // replace memory_map to high address
+                    var memory_map_ptr = @intFromPtr(P_MEM.memory_map.ptr);
+                    P_MEM.memory_map = @as([*]u8, @ptrFromInt(memory_map_ptr + response.offset))[0..P_MEM.total_pages];
+                }
             } else {
                 @panic("get HHDM response fails");
             }
