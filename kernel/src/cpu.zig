@@ -167,14 +167,15 @@ pub inline fn get_interrupt_state() bool {
 
 /// Clear the IF FLAG and return the previous value
 pub inline fn interrupt_disable() bool {
-    var tmp = asm volatile (
+    var tmp: usize = undefined;
+    asm volatile (
         \\ pushfq
         \\ cli
         \\ popq %%rax
         \\ shrq $9, %%rax
         \\ andq $1, %%rax
         \\ mov %%rax, %[result]
-        : [result] "=r" (-> usize),
+        : [result] "=r" (tmp),
         :
         : "memory"
     );
