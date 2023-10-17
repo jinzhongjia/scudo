@@ -124,3 +124,43 @@ pub inline fn readCR3() usize {
 pub inline fn get_PML4() usize {
     return readCR3() & 0xfffffffffffff000;
 }
+
+const RFLAGS = packed struct(u64) {
+    CF: bool = false,
+    reserved0: bool = true,
+    PF: bool = false,
+    reserved1: bool = false,
+    AF: bool = false,
+    reserved2: bool = false,
+    ZF: bool = false,
+    SF: bool = false,
+    TF: bool = false,
+    IF: bool = false,
+    DF: bool = false,
+    OF: bool = false,
+    IOPL: u2 = 0,
+    NT: bool = false,
+    reserved3: bool = false,
+    RF: bool = false,
+    VM: bool = false,
+    AC: bool = false,
+    VIF: bool = false,
+    VIP: bool = false,
+    ID: bool = false,
+    reserved4: u10 = 0,
+    reserved5: u32 = 0,
+};
+
+pub inline fn get_flags() RFLAGS {
+    return asm volatile (
+        \\pushfq
+        \\pop %[flags]
+        : [flags] "=r" (-> RFLAGS),
+        :
+        : "memory"
+    );
+}
+
+pub inline fn get_interrupt_state() bool {
+    return get_flags().IF;
+}
