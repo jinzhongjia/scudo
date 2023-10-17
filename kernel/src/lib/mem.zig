@@ -141,6 +141,13 @@ const V_MEM = struct {
             }
         }
 
+        // attempt to clear low half virtual address
+        {
+            // @memset(@as([*]u8, @ptrCast(PML4))[0 .. 256 * @sizeOf(PageMapLevel4Entry)], 0);
+            @memset(PML4[0..256], PageMapLevel4Entry{});
+            // @compileLog(@sizeOf(PageMapLevel4Entry));
+        }
+
         idt.register(14, pageFault);
     }
 
@@ -187,19 +194,19 @@ const V_MEM = struct {
     }
 
     const PageMapLevel4Entry = packed struct {
-        present: u1,
-        writeable: u1,
-        user_access: u1,
-        write_through: u1,
-        cache_disabled: u1,
-        accessed: u1,
-        ignored_1: u1,
-        reserved_1: u1,
-        ignored_2: u3,
-        HLAT: u1,
-        paddr: u40,
-        ignored_3: u11,
-        execute_disable: u1,
+        present: u1 = 0,
+        writeable: u1 = 0,
+        user_access: u1 = 0,
+        write_through: u1 = 0,
+        cache_disabled: u1 = 0,
+        accessed: u1 = 0,
+        ignored_1: u1 = 0,
+        reserved_1: u1 = 0,
+        ignored_2: u3 = 0,
+        HLAT: u1 = 0,
+        paddr: u40 = 0,
+        ignored_3: u11 = 0,
+        execute_disable: u1 = 0,
     };
 
     const PageDirPointerTableEntry = packed struct {
