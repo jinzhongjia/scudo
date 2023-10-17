@@ -134,9 +134,41 @@ fn make_unhandled(comptime num: u8) fn () noreturn {
     return struct {
         fn handle() noreturn {
             if (num >= PIC.IRQ_0) {
-                tty.panicf("Unhandled IRQ number {d}", num - PIC.IRQ_0);
+                tty.panicf(
+                    \\IRQ EXCEPTION: {d}
+                    \\       VECTOR: 0x{x:0>2}
+                    \\        ERROR: 0b{b:0>17}
+                    \\       RFLAGS: 0b{b:0>22}
+                    \\           CS: 0x{x:0>2}
+                    \\          RIP: 0x{x}
+                    \\          RSP: 0x{x}
+                , .{
+                    num - PIC.IRQ_0,
+                    num,
+                    context.error_code,
+                    context.rflags,
+                    context.cs,
+                    context.rip,
+                    context.rsp,
+                });
             } else {
-                tty.panicf("Unhandled exception number {d}", num);
+                tty.panicf(
+                    \\EXCEPTION: {s}
+                    \\   VECTOR: 0x{x:0>2}
+                    \\    ERROR: 0b{b:0>17}
+                    \\   RFLAGS: 0b{b:0>22}
+                    \\       CS: 0x{x:0>2}
+                    \\      RIP: 0x{x}
+                    \\      RSP: 0x{x}
+                , .{
+                    messages[num],
+                    num,
+                    context.error_code,
+                    context.rflags,
+                    context.cs,
+                    context.rip,
+                    context.rsp,
+                });
             }
         }
     }.handle;
@@ -147,20 +179,10 @@ pub fn register(n: u8, handler: *const fn () void) void {
 }
 
 export fn interruptDispatch() void {
-    // @panic("An exception occurred");
     const interrupt_num: u8 = @intCast(context.interrupt_num);
-
-    // tty.println("interrupt num is {}", interrupt_num);
 
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
-            tty.println("EXCEPTION: {s}", messages[interrupt_num]);
-            tty.println("   VECTOR: 0x{x:0>2}", interrupt_num);
-            tty.println("    ERROR: 0b{b:0>17}", context.error_code);
-            tty.println("   RFLAGS: 0b{b:0>22}", context.rflags);
-            tty.println("       CS: 0x{x:0>2}", context.cs);
-            tty.println("      RIP: 0x{x}", context.rip);
-            tty.println("      RSP: 0x{x}", context.rsp);
             handlers[interrupt_num]();
         },
         PIC.IRQ_0...PIC.IRQ_15 => {
