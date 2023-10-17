@@ -153,8 +153,8 @@ const RFLAGS = packed struct(u64) {
 
 pub inline fn get_flags() RFLAGS {
     return asm volatile (
-        \\pushfq
-        \\pop %[flags]
+        \\ pushfq
+        \\ pop %[flags]
         : [flags] "=r" (-> RFLAGS),
         :
         : "memory"
@@ -163,4 +163,19 @@ pub inline fn get_flags() RFLAGS {
 
 pub inline fn get_interrupt_state() bool {
     return get_flags().IF;
+}
+
+/// Clear the IF FLAG and return the previous value
+pub inline fn interrupt_disable() bool {
+    var dd = asm volatile (
+        \\ pushfq
+        \\ cli
+        \\ popq %%rax
+        \\ shrq $9, %%rax
+        \\ andq $1, %%rax
+        \\ mov %%rax, %[result]
+        : [result] "=r" (-> usize),
+    );
+
+    return dd == 1;
 }
