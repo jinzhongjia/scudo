@@ -167,7 +167,7 @@ pub inline fn get_interrupt_state() bool {
 
 /// Clear the IF FLAG and return the previous value
 pub inline fn interrupt_disable() bool {
-    var dd = asm volatile (
+    var tmp = asm volatile (
         \\ pushfq
         \\ cli
         \\ popq %%rax
@@ -179,5 +179,5 @@ pub inline fn interrupt_disable() bool {
         : "memory"
     );
 
-    return dd == 1;
+    return tmp == 1;
 }
