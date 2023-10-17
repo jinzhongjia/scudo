@@ -175,6 +175,8 @@ pub inline fn interrupt_disable() bool {
         \\ andq $1, %%rax
         \\ mov %%rax, %[result]
         : [result] "=r" (-> usize),
+        :
+        : "memory"
     );
 
     return dd == 1;
