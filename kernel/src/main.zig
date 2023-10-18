@@ -21,10 +21,11 @@ pub fn main() noreturn {
 fn test_kernel() void {
     // test for page fault
     {
-        //     var num: usize = 0xffff_ffff_f000_0000;
-        //     var ptr: *u64 = @ptrFromInt(num);
+        // var num: usize = 0xffff_ffff_f000_0000;
+        // var ptr: *u64 = @ptrFromInt(num);
         //
-        //     println("{}", ptr.*);
+        // asm volatile ("xchgw %bx, %bx");
+        // ptr.* = 5;
     }
 
     // test for physical memory allocate

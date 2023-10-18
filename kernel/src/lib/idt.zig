@@ -410,15 +410,15 @@ comptime {
         \\    pushaq // Save the registers state.
         \\
         // Save the pointer to the context
-        \\    mov %esp, context
+        \\    mov %rsp, context
         \\    
         // Handle the interrupt event
         \\    call interruptDispatch
         \\
         // Restore the pointer to the context
-        \\    mov context, %esp
+        \\    mov context, %rsp
         \\    popaq
-        \\    add $16, %esp 
+        \\    add $16, %rsp 
         \\    iretq
         \\ .type isrCommon, @function
         \\
