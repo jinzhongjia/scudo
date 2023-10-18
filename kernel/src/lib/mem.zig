@@ -119,6 +119,8 @@ pub const P_MEM = struct {
     }
 };
 
+/// init for vmeme
+/// NOTE: we use 4 level paging
 const V_MEM = struct {
     const canonical_high_addr = 0xffff800000000000;
     const canonical_low_addr = 0xffff800000000000;
