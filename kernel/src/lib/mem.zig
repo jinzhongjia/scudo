@@ -143,6 +143,7 @@ const V_MEM = struct {
 
         // attempt to clear low half virtual address
         {
+            // TODO: here is error
             // @memset(@as([*]u8, @ptrCast(PML4))[0 .. 256 * @sizeOf(PageMapLevel4Entry)], 0);
             @memset(PML4[0..256], PageMapLevel4Entry{});
             // @compileLog(@sizeOf(PageMapLevel4Entry));
