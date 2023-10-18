@@ -7,10 +7,14 @@ const PAGE_SIZE = 0x1000;
 
 export var limine_mem_map: limine.MemoryMapRequest = .{};
 export var limine_HHDM: limine.HhdmRequest = .{};
+export var limine_kernel_addr: limine.KernelAddressRequest = .{};
 
 pub fn init() void {
     P_MEM.init();
     V_MEM.init();
+    if (limine_kernel_addr.response == null) {
+        @panic("can't get kernel_addr response from limine");
+    }
 }
 
 pub const P_MEM = struct {
@@ -116,6 +120,8 @@ pub const P_MEM = struct {
 };
 
 const V_MEM = struct {
+    const canonical_high_addr = 0xffff800000000000;
+
     var PML4: *[512]PageMapLevel4Entry = undefined;
 
     const PDPT = *[512]PageDirPointerTableEntry;
@@ -287,4 +293,17 @@ const V_MEM = struct {
         reserved_2: u16,
         zero_padding: u32,
     };
+
+    pub fn high_half_2_paddr(virtual_addr: usize) usize {
+        if (virtual_addr < canonical_high_addr) {
+            tty.panicf("sorry, you pass a non-high-address: 0x{x}", virtual_addr);
+        }
+
+        var offset = limine_HHDM.response.?.offset;
+        if (virtual_addr > limine_kernel_addr.response.?.virtual_base) {
+            tty.println("a virtual addr which is higher than kernel_addr to paddr", virtual_addr);
+        }
+
+        return virtual_addr - offset;
+    }
 };
