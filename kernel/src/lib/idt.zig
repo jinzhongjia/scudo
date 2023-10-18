@@ -134,9 +134,41 @@ fn make_unhandled(comptime num: u8) fn () noreturn {
     return struct {
         fn handle() noreturn {
             if (num >= PIC.IRQ_0) {
-                tty.panicf("Unhandled IRQ number {d}", num - PIC.IRQ_0);
+                tty.panicf(
+                    \\IRQ EXCEPTION: {d}
+                    \\       VECTOR: 0x{x:0>2}
+                    \\        ERROR: 0b{b:0>17}
+                    \\       RFLAGS: 0b{b:0>22}
+                    \\           CS: 0x{x:0>2}
+                    \\          RIP: 0x{x}
+                    \\          RSP: 0x{x}
+                , .{
+                    num - PIC.IRQ_0,
+                    num,
+                    context.error_code,
+                    context.rflags,
+                    context.cs,
+                    context.rip,
+                    context.rsp,
+                });
             } else {
-                tty.panicf("Unhandled exception number {d}", num);
+                tty.panicf(
+                    \\EXCEPTION: {s}
+                    \\   VECTOR: 0x{x:0>2}
+                    \\    ERROR: 0b{b:0>17}
+                    \\   RFLAGS: 0b{b:0>22}
+                    \\       CS: 0x{x:0>2}
+                    \\      RIP: 0x{x}
+                    \\      RSP: 0x{x}
+                , .{
+                    messages[num],
+                    num,
+                    context.error_code,
+                    context.rflags,
+                    context.cs,
+                    context.rip,
+                    context.rsp,
+                });
             }
         }
     }.handle;
@@ -147,21 +179,11 @@ pub fn register(n: u8, handler: *const fn () void) void {
 }
 
 export fn interruptDispatch() void {
-    // @panic("An exception occurred");
     const interrupt_num: u8 = @intCast(context.interrupt_num);
-
-    // tty.println("interrupt num is {}", interrupt_num);
 
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
-            tty.println("EXCEPTION: {s}", messages[interrupt_num]);
-            tty.println("   VECTOR: 0x{x:0>2}", interrupt_num);
-            tty.println("    ERROR: 0b{b:0>17}", context.error_code);
-            tty.println("   RFLAGS: 0b{b:0>22}", context.rflags);
-            tty.println("       CS: 0x{x:0>2}", context.cs);
-            tty.println("      RIP: 0x{x}", context.rip);
-            tty.println("      RSP: 0x{x}", context.rsp);
-            cpu.hlt();
+            handlers[interrupt_num]();
         },
         PIC.IRQ_0...PIC.IRQ_15 => {
             const irq: u8 = interrupt_num - PIC.IRQ_0;
@@ -183,13 +205,14 @@ export fn interruptDispatch() void {
 
 pub export var context: *volatile Context = undefined;
 
-pub const Context = packed struct {
+const Context = packed struct {
     // we will manually push register
     registers: Registers,
     // this will be pushed by macro isrGenerate
     interrupt_num: u64,
     // this will be pushed by macro isrGenerate
     error_code: u64, // note: error_code will only be pushed by hardware interrupt
+    // In Long Mode, the error code is padded with zeros to form a 64-bit push, so that it can be popped like any other value.
 
     // CPU status
     // more you can see:
@@ -387,15 +410,15 @@ comptime {
         \\    pushaq // Save the registers state.
         \\
         // Save the pointer to the context
-        \\    mov %esp, context
+        \\    mov %rsp, context
         \\    
         // Handle the interrupt event
         \\    call interruptDispatch
         \\
         // Restore the pointer to the context
-        \\    mov context, %esp
+        \\    mov context, %rsp
         \\    popaq
-        \\    add $16, %esp 
+        \\    add $16, %rsp 
         \\    iretq
         \\ .type isrCommon, @function
         \\

@@ -184,6 +184,8 @@ pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
 
     while (true) {}
 
+    // NOTE: use trap to replace ud2
+    @trap();
     // The code will not go here, otherwise an error will occur
-    asm volatile ("ud2");
+    // asm volatile ("ud2");
 }
