@@ -23,8 +23,6 @@ fn test_kernel() void {
     {
         // var num: usize = 0xffff_ffff_f000_0000;
         // var ptr: *u64 = @ptrFromInt(num);
-        //
-        // asm volatile ("xchgw %bx, %bx");
         // ptr.* = 5;
     }
 

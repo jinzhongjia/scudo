@@ -121,6 +121,7 @@ pub const P_MEM = struct {
 
 const V_MEM = struct {
     const canonical_high_addr = 0xffff800000000000;
+    const canonical_low_addr = 0xffff800000000000;
 
     var PML4: *[512]PageMapLevel4Entry = undefined;
 
@@ -305,5 +306,15 @@ const V_MEM = struct {
         }
 
         return virtual_addr - offset;
+    }
+
+    pub fn paddr_2_high_half(paddr: usize) usize {
+        if (paddr > canonical_low_addr) {
+            tty.panicf("sorry, you pass a non-low-address: 0x{x}", paddr);
+        }
+
+        var offset = limine_HHDM.response.?.offset;
+
+        return paddr + offset;
     }
 };
