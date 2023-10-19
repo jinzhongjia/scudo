@@ -2,6 +2,7 @@ const limine = @import("limine");
 const idt = @import("idt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
+const config = @import("config.zig").mem;
 
 const PAGE_SIZE = 0x1000;
 
@@ -70,6 +71,27 @@ pub const P_MEM = struct {
             }
 
             @memset(memory_map[memory_map_self_index .. memory_map_self_index + memmap_pages], 1);
+        }
+
+        if (comptime config.is_print_mem_info) {
+            var TOTAL_SIZE = total_pages * PAGE_SIZE;
+            switch (config.display_type) {
+                0 => {
+                    tty.println("all physical memory is {}B", TOTAL_SIZE);
+                },
+                1 => {
+                    tty.println("all physical memory is {}KB", TOTAL_SIZE / 1024);
+                },
+                2 => {
+                    tty.println("all physical memory is {}MB", TOTAL_SIZE / 1024 / 1024);
+                },
+                3 => {
+                    tty.println("all physical memory is {}GB", TOTAL_SIZE / 1024 / 1024 / 1024);
+                },
+                else => {
+                    @panic("display_type should be less than 4");
+                },
+            }
         }
     }
 

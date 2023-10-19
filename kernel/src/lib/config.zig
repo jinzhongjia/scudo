@@ -11,7 +11,7 @@ pub const mem = struct {
     pub const is_print_mem_info: bool = true;
 
     /// display type: 0 is B, 1 is KB, 2 is MB, 3 is GB
-    pub const display_type: u8 = 3;
+    pub const display_type: u8 = 2;
 
     comptime {
         if (display_type > 3) {
