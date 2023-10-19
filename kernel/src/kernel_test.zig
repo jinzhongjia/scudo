@@ -3,6 +3,23 @@ const println = lib.tty.println;
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
+
+    // test for bitmaps
+    {
+        // var bit_buf: [2]u8 = undefined;
+        // var bitmap = lib.std.bitmap_t.init(@intFromPtr(&bit_buf), 2, 0);
+        // bitmap.set_bit(1, true);
+        // if (bitmap.test_bit(1)) {
+        //     println("set_bit and test_bit is ok", null);
+        // }
+        //
+        // if (bitmap.scan(2)) |index| {
+        //     if (index == 2) {
+        //         println("scan is ok", null);
+        //     }
+        // }
+    }
+
     // test for page fault
     {
         // var num: usize = 0xffff_ffff_f000_0000;
