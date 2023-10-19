@@ -18,6 +18,8 @@ pub fn init() void {
 }
 
 pub const P_MEM = struct {
+    // NOTE: this module should be rewrite!!!
+
     /// this is entries for memory map
     var memmap_entries: []*limine.MemoryMapEntry = undefined;
 
