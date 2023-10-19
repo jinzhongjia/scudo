@@ -37,12 +37,9 @@ pub const P_MEM = struct {
     fn init() void {
         if (limine_mem_map.response) |response| {
             memmap_entries = response.entries();
-            for (memmap_entries, 0..) |value, index| {
+            for (memmap_entries) |value| {
                 if (value.kind == .usable) {
-                    var tmp_size = value.length / PAGE_SIZE;
-                    total_pages += tmp_size;
-                    // Overwrite the original memory map
-                    memmap_entries[index].length = tmp_size * PAGE_SIZE;
+                    total_pages += value.length / PAGE_SIZE;
                 }
             }
         } else {
@@ -74,19 +71,19 @@ pub const P_MEM = struct {
         }
 
         if (comptime config.is_print_mem_info) {
-            var TOTAL_SIZE = total_pages * PAGE_SIZE;
+            var TOTAL_SIZE = free_pages * PAGE_SIZE;
             switch (config.display_type) {
                 0 => {
-                    tty.println("all physical memory is {}B", TOTAL_SIZE);
+                    tty.println("available physical memory is {}B", TOTAL_SIZE);
                 },
                 1 => {
-                    tty.println("all physical memory is {}KB", TOTAL_SIZE / 1024);
+                    tty.println("available physical memory is {}KB", TOTAL_SIZE / 1024);
                 },
                 2 => {
-                    tty.println("all physical memory is {}MB", TOTAL_SIZE / 1024 / 1024);
+                    tty.println("available physical memory is {}MB", TOTAL_SIZE / 1024 / 1024);
                 },
                 3 => {
-                    tty.println("all physical memory is {}GB", TOTAL_SIZE / 1024 / 1024 / 1024);
+                    tty.println("available physical memory is {}GB", TOTAL_SIZE / 1024 / 1024 / 1024);
                 },
                 else => {
                     @panic("display_type should be less than 4");
