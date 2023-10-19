@@ -21,3 +21,5 @@ pub const mem = struct {
         }
     }
 };
+
+pub const if_print_frame_buffer_addr: bool = false;

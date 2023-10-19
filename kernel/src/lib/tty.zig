@@ -4,6 +4,7 @@ const fmt = std.fmt;
 const framebuffer = @import("tty/framebuffer.zig");
 const font = @import("tty/font.zig");
 const cpu = @import("../cpu.zig");
+const config = @import("config.zig");
 
 var maxHeight: u32 = undefined;
 var maxWidth: u32 = undefined;
@@ -17,6 +18,9 @@ pub fn init() void {
     framebuffer.init();
     maxHeight = @intCast(framebuffer.height / font.font_height);
     maxWidth = @intCast(framebuffer.width / font.font_width);
+    if (config.if_print_frame_buffer_addr) {
+        println("framebuffer addr is 0x{x}", @intFromPtr(framebuffer.address));
+    }
 }
 
 // 通过当前的文字宽获取x
