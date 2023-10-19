@@ -3,6 +3,15 @@ const println = lib.tty.println;
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
+    // test for high address for limine
+    // need 6G memory
+    {
+        // var addr: usize = 0xffff_8001_4000_0000;
+        // var ptr: *u8 = @ptrFromInt(addr);
+        // ptr.* = 5;
+        //
+        // println("{}", ptr.*);
+    }
 
     // test for bitmaps
     {

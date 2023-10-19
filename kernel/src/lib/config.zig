@@ -13,6 +13,8 @@ pub const mem = struct {
     /// display type: 0 is B, 1 is KB, 2 is MB, 3 is GB
     pub const display_type: u8 = 2;
 
+    pub const if_print_HHDM: bool = false;
+
     comptime {
         if (display_type > 3) {
             @panic("display_type must be less than 4");

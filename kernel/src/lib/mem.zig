@@ -157,6 +157,9 @@ pub const V_MEM = struct {
         // then we can easily control it
         {
             if (limine_HHDM.response) |response| {
+                if (config.if_print_HHDM) {
+                    tty.println("HHDM is 0x{x}", response.offset);
+                }
                 var PML4_paddr = cpu.get_PML4();
                 var PML4_ptr = PML4_paddr + response.offset;
                 PML4 = @ptrFromInt(PML4_ptr);
