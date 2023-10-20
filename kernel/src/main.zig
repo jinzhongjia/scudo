@@ -1,5 +1,8 @@
+const std = @import("std");
 const lib = @import("lib.zig");
 const kernel_test = @import("kernel_test.zig").test_kernel;
+
+const log = std.log.scoped(.ZOS);
 
 pub fn main() noreturn {
     lib.tty.init();
@@ -11,6 +14,9 @@ pub fn main() noreturn {
 
     // asm volatile ("xchgw %bx, %bx");
     // asm volatile ("int $0x80");
+
+    lib.tty.clear();
+    log.debug("Hello World!", .{});
 
     kernel_test();
 
