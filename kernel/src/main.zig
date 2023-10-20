@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const lib = @import("lib.zig");
 const kernel_test = @import("kernel_test.zig").test_kernel;
 
@@ -12,13 +13,13 @@ pub fn main() noreturn {
     lib.time.init();
     lib.mem.init();
 
-    // asm volatile ("xchgw %bx, %bx");
-    // asm volatile ("int $0x80");
-
     lib.tty.clear();
-    log.debug("Hello World!", .{});
+    log.debug("build mode {s}", @tagName(builtin.mode));
 
     kernel_test();
 
-    @panic("Note:This is an experimental project!\nWe're done, just hang...");
+    @panic(
+        \\Note:This is an experimental project!
+        \\Now kernel is stop!
+    );
 }

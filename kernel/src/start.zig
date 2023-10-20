@@ -9,4 +9,5 @@ export fn _start() callconv(.C) noreturn {
 // override default panic
 pub const panic = lib.tty.panic;
 
+// for std log
 pub const std_options = lib.tty.std_options;
