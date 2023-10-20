@@ -182,3 +182,13 @@ pub inline fn interrupt_disable() bool {
 
     return tmp == 1;
 }
+
+pub inline fn stopCPU() noreturn {
+    while (true) {
+        asm volatile (
+            \\cli
+            \\hlt
+            \\pause
+            ::: "memory");
+    }
+}

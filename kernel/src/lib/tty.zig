@@ -186,10 +186,48 @@ pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
         fmt.format(writer, format, .{args}) catch {};
     }
 
-    while (true) {}
+    cpu.stopCPU();
 
     // NOTE: use trap to replace ud2
     @trap();
     // The code will not go here, otherwise an error will occur
     // asm volatile ("ud2");
 }
+
+pub fn logf(comptime format: []const u8, args: anytype) void {
+    @setCold(true);
+    // 尴尬的是，为了在panic时保证红色输出，我们不得不在这里定义一个新的writer
+    // 当然也可以使用color_string来实现，不过那样太丑了
+    const Writer = std.io.Writer(
+        void,
+        error{},
+        struct {
+            fn writeFn(_: void, bytes: []const u8) !usize {
+                color_string(framebuffer.color.yellow, framebuffer.color.black, bytes);
+                return bytes.len;
+            }
+        }.writeFn,
+    );
+    const writer: Writer = .{ .context = {} };
+
+    const ArgsType = @TypeOf(args);
+    const args_type_info = @typeInfo(ArgsType);
+    if (args_type_info == .Struct and args_type_info.Struct.is_tuple) {
+        fmt.format(writer, format, args) catch {};
+    } else if (args_type_info == .Null) {
+        fmt.format(writer, format, .{}) catch {};
+    } else {
+        fmt.format(writer, format, .{args}) catch {};
+    }
+}
+
+/// for log implemention
+pub const std_options = struct {
+    pub const log_level = std.log.Level.debug;
+    pub fn logFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+        const scope_prefix = "(" ++ @tagName(scope) ++ "): ";
+
+        const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
+        logf(prefix ++ format ++ "\n", args);
+    }
+};

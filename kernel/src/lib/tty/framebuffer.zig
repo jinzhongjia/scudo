@@ -53,4 +53,8 @@ pub const color = struct {
     pub const red = Entry{
         .red = 0xff,
     };
+    pub const yellow = Entry{
+        .green = 0xff,
+        .red = 0xff,
+    };
 };
