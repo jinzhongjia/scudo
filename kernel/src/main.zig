@@ -13,7 +13,10 @@ pub fn main() noreturn {
     lib.time.init();
     lib.mem.init();
 
-    lib.tty.clear();
+    if (builtin.mode != .Debug) {
+        lib.tty.clear();
+    }
+
     log.debug("build mode {s}", @tagName(builtin.mode));
 
     kernel_test();
