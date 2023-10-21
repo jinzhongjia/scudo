@@ -110,12 +110,13 @@ pub const P_MEM = struct {
             for (0..entry.length / PAGE_SIZE) |_| {
                 if (memory_map[map_index] == 0) {
                     memory_map[map_index] = 1;
+                    free_pages -= 1;
                     return map_index_to_addr(map_index);
                 }
                 map_index += 1;
             }
         }
-        unreachable;
+        @panic("no more free page to allocate");
     }
 
     pub fn free_page(addr: usize) void {
@@ -137,6 +138,7 @@ pub const P_MEM = struct {
         }
 
         memory_map[map_index] = 0;
+        free_pages += 1;
     }
 };
 
