@@ -22,6 +22,6 @@ pub fn main() noreturn {
 
     @panic(
         \\Note:This is an experimental project!
-        \\Now kernel is stop!
+        \\Now kernel is hang!
     );
 }
