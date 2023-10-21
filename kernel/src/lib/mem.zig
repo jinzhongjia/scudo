@@ -2,9 +2,10 @@ const limine = @import("limine");
 const idt = @import("idt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
+const lib = @import("../lib.zig");
 const config = @import("config.zig").mem;
 
-const PAGE_SIZE = 0x1000;
+pub const PAGE_SIZE = 0x1000;
 
 export var limine_mem_map: limine.MemoryMapRequest = .{};
 export var limine_HHDM: limine.HhdmRequest = .{};
@@ -34,8 +35,6 @@ pub const P_MEM = struct {
     var memmap_pages: u64 = 0;
     var memory_map_self_index: u64 = 0;
 
-    var kernel_physical_start: usize = undefined;
-    // for kernel size u32 is enough
     var kernel_region_size: u64 = undefined;
 
     fn init() void {
@@ -49,7 +48,6 @@ pub const P_MEM = struct {
                     if (kernel_region_size != 0) {
                         @panic("more than two kernel and file areas");
                     }
-                    kernel_physical_start = value.base;
                     kernel_region_size = value.length;
                 }
             }
@@ -220,7 +218,7 @@ pub const V_MEM = struct {
     //
     // 9 bit PML4I (page map level 4 index)	9 bit PDPTI (page directory pointer table index)	9 bit PDI (page directory index)	9 bit PTI (page table index)	12 bit offset
 
-    pub const Virtual_Addr = struct {
+    pub const VIRTUAL_ADDR = struct {
         reserved: u16,
         pml4i: u9,
         pdpti: u9,
@@ -228,8 +226,8 @@ pub const V_MEM = struct {
         pti: u9,
         offset: u12,
 
-        pub fn init(virtual_addr: usize) Virtual_Addr {
-            return Virtual_Addr{
+        pub fn init(virtual_addr: usize) VIRTUAL_ADDR {
+            return VIRTUAL_ADDR{
                 .reserved = RESERVED(virtual_addr),
                 .pml4i = PML4I(virtual_addr),
                 .pdpti = PDPTI(virtual_addr),
@@ -238,27 +236,35 @@ pub const V_MEM = struct {
                 .offset = OFFSET(virtual_addr),
             };
         }
-        pub fn RESERVED(addr: usize) u16 {
+        fn RESERVED(addr: usize) u16 {
             return @truncate(addr >> (9 + 9 + 9 + 9 + 12));
         }
-        pub fn PML4I(addr: usize) u9 {
+        fn PML4I(addr: usize) u9 {
             return @truncate((addr >> (9 + 9 + 9 + 12)) & 0x1ff);
         }
 
-        pub fn PDPTI(addr: usize) u9 {
+        fn PDPTI(addr: usize) u9 {
             return @truncate((addr >> (9 + 9 + 12)) & 0x1ff);
         }
 
-        pub fn PDTI(addr: usize) u9 {
+        fn PDTI(addr: usize) u9 {
             return @truncate((addr >> (9 + 12)) & 0x1ff);
         }
 
-        pub fn PTI(addr: usize) u9 {
+        fn PTI(addr: usize) u9 {
             return @truncate((addr >> 12) & 0x1ff);
         }
 
-        pub fn OFFSET(addr: usize) u12 {
+        fn OFFSET(addr: usize) u12 {
             return @truncate(addr & 0xfff);
+        }
+
+        pub fn offset_1G_page(this: VIRTUAL_ADDR) usize {
+            return (@as(usize, @intCast(this.pdti)) << (12 + 9)) + (@as(usize, @intCast(this.pti)) << 9) + (@as(usize, @intCast(this.offset)));
+        }
+
+        pub fn offset_2M_page(this: VIRTUAL_ADDR) usize {
+            return (@as(usize, @intCast(this.pti)) << 9) + (@as(usize, @intCast(this.offset)));
         }
     };
 
@@ -379,7 +385,61 @@ pub const V_MEM = struct {
         return paddr + offset;
     }
 
-    fn translate_virtual_address(virtual_addr: usize) ?usize {
-        _ = virtual_addr;
+    // must be 4k align
+    pub fn translate_virtual_address(virtual_addr: usize) ?usize {
+        lib.assert(@src(), virtual_addr % PAGE_SIZE == 0);
+
+        const vaddr = VIRTUAL_ADDR.init(virtual_addr);
+
+        var pdpt: *[512]PageDirPointerTableEntry = undefined;
+        {
+            const pml4_entry = PML4.*[vaddr.pml4i];
+
+            if (pml4_entry.present != 1) {
+                return null;
+            }
+
+            pdpt = @ptrFromInt(paddr_2_high_half(pml4_entry.paddr * PAGE_SIZE));
+        }
+
+        var pdt: *[512]PageDirTableEntry = undefined;
+        {
+            const pdpt_entry = pdpt.*[vaddr.pdpti];
+
+            if (pdpt_entry.present != 1) {
+                return null;
+            }
+
+            if (pdpt_entry.page_size == 1) {
+                return pdpt_entry.paddr * PAGE_SIZE + vaddr.offset_1G_page();
+            }
+
+            pdt = @ptrFromInt(paddr_2_high_half(pdpt_entry.paddr * PAGE_SIZE));
+        }
+
+        var pt: *[512]PageTableEntry = undefined;
+        // TODO:
+        {
+            const pdt_entry = pdt.*[vaddr.pdti];
+            if (pdt_entry.present != 1) {
+                return null;
+            }
+
+            if (pdt_entry.page_size == 1) {
+                return pdt_entry.paddr * PAGE_SIZE + vaddr.offset_2M_page();
+            }
+
+            pt = @ptrFromInt(paddr_2_high_half(pdt_entry.paddr * PAGE_SIZE));
+        }
+
+        {
+            var pt_entry = pt.*[vaddr.pti];
+
+            if (pt_entry.present != 1) {
+                return null;
+            }
+
+            return pt_entry.paddr * PAGE_SIZE + vaddr.offset;
+        }
     }
 };
