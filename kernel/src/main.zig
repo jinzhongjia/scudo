@@ -1,9 +1,8 @@
-const std = @import("std");
 const builtin = @import("builtin");
 const lib = @import("lib.zig");
 const kernel_test = @import("kernel_test.zig").test_kernel;
 
-const log = std.log.scoped(.ZOS);
+const log = lib.log.scoped(.ZOS);
 
 pub fn main() noreturn {
     lib.tty.init();

@@ -220,25 +220,47 @@ pub const V_MEM = struct {
     //
     // 9 bit PML4I (page map level 4 index)	9 bit PDPTI (page directory pointer table index)	9 bit PDI (page directory index)	9 bit PTI (page table index)	12 bit offset
 
-    pub fn PML4I(addr: u64) u9 {
-        return @truncate((addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-    }
+    pub const Virtual_Addr = struct {
+        reserved: u16,
+        pml4i: u9,
+        pdpti: u9,
+        pdti: u9,
+        pti: u9,
+        offset: u12,
 
-    pub fn PDPTI(addr: u64) u9 {
-        return @truncate((addr >> (9 + 9 + 12)) & 0x1ff);
-    }
+        pub fn init(virtual_addr: usize) Virtual_Addr {
+            return Virtual_Addr{
+                .reserved = RESERVED(virtual_addr),
+                .pml4i = PML4I(virtual_addr),
+                .pdpti = PDPTI(virtual_addr),
+                .pdti = PDTI(virtual_addr),
+                .pti = PTI(virtual_addr),
+                .offset = OFFSET(virtual_addr),
+            };
+        }
+        pub fn RESERVED(addr: usize) u16 {
+            return @truncate(addr >> (9 + 9 + 9 + 9 + 12));
+        }
+        pub fn PML4I(addr: usize) u9 {
+            return @truncate((addr >> (9 + 9 + 9 + 12)) & 0x1ff);
+        }
 
-    pub fn PDTI(addr: u64) u9 {
-        return @truncate((addr >> (9 + 12)) & 0x1ff);
-    }
+        pub fn PDPTI(addr: usize) u9 {
+            return @truncate((addr >> (9 + 9 + 12)) & 0x1ff);
+        }
 
-    pub fn PTI(addr: u64) u9 {
-        return @truncate((addr >> 12) & 0x1ff);
-    }
+        pub fn PDTI(addr: usize) u9 {
+            return @truncate((addr >> (9 + 12)) & 0x1ff);
+        }
 
-    pub fn OFFSET(addr: u64) u12 {
-        return @truncate(addr & 0xfff);
-    }
+        pub fn PTI(addr: usize) u9 {
+            return @truncate((addr >> 12) & 0x1ff);
+        }
+
+        pub fn OFFSET(addr: usize) u12 {
+            return @truncate(addr & 0xfff);
+        }
+    };
 
     const PageMapLevel4Entry = packed struct {
         present: u1 = 0,
@@ -355,5 +377,9 @@ pub const V_MEM = struct {
         var offset = limine_HHDM.response.?.offset;
 
         return paddr + offset;
+    }
+
+    fn translate_virtual_address(virtual_addr: usize) ?usize {
+        _ = virtual_addr;
     }
 };

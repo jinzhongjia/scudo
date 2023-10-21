@@ -3,6 +3,12 @@ const println = lib.tty.println;
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
+    // test for Virtual_Addr
+    {
+        // const addr = 0xffffffff80000000;
+        // lib.log.debug("{}", lib.mem.V_MEM.Virtual_Addr.init(addr));
+    }
+
     // test for high address for limine
     // need 6G memory
     {
