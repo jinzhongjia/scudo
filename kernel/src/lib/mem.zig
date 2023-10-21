@@ -34,12 +34,23 @@ pub const P_MEM = struct {
     var memmap_pages: u64 = 0;
     var memory_map_self_index: u64 = 0;
 
+    var kernel_physical_start: usize = undefined;
+    // for kernel size u32 is enough
+    var kernel_region_size: u64 = undefined;
+
     fn init() void {
         if (limine_mem_map.response) |response| {
             memmap_entries = response.entries();
             for (memmap_entries) |value| {
                 if (value.kind == .usable) {
                     total_pages += value.length / PAGE_SIZE;
+                }
+                if (value.kind == .kernel_and_modules) {
+                    if (kernel_region_size != 0) {
+                        @panic("more than two kernel and file areas");
+                    }
+                    kernel_physical_start = value.base;
+                    kernel_region_size = value.length;
                 }
             }
         } else {
