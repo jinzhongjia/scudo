@@ -385,10 +385,7 @@ pub const V_MEM = struct {
         return paddr + offset;
     }
 
-    // must be 4k align
     pub fn translate_virtual_address(virtual_addr: usize) ?usize {
-        lib.assert(@src(), virtual_addr % PAGE_SIZE == 0);
-
         const vaddr = VIRTUAL_ADDR.init(virtual_addr);
 
         var pdpt: *[512]PageDirPointerTableEntry = undefined;
@@ -418,7 +415,6 @@ pub const V_MEM = struct {
         }
 
         var pt: *[512]PageTableEntry = undefined;
-        // TODO:
         {
             const pdt_entry = pdt.*[vaddr.pdti];
             if (pdt_entry.present != 1) {
@@ -441,5 +437,16 @@ pub const V_MEM = struct {
 
             return pt_entry.paddr * PAGE_SIZE + vaddr.offset;
         }
+    }
+
+    // prevent to use limine's default used address
+    fn check_vaddr_legit(vaddr: usize) bool {
+        for (P_MEM.memmap_entries) |mmap| {
+            var addr = paddr_2_high_half(mmap.base);
+            if (addr <= vaddr and vaddr < addr + mmap.length) {
+                return false;
+            }
+        }
+        return true;
     }
 };
