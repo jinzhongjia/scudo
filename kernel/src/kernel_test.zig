@@ -12,6 +12,8 @@ pub inline fn test_kernel() void {
         if (result) |val| {
             if (val != 0x5000_0000) {
                 println("test virtual addr translate fails, 0x{x}", val);
+            } else {
+                println("test for virtual addr is ok", null);
             }
         } else {
             println("test virtual addr translate fails, return val is null", null);

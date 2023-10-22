@@ -151,17 +151,22 @@ pub const P_MEM = struct {
     }
 };
 
+pub fn is_aligned(addr: usize) bool {
+    return addr % PAGE_SIZE == 0;
+}
+
 /// init for vmeme
 /// NOTE: we use 4 level paging
 pub const V_MEM = struct {
     const canonical_high_addr = 0xffff800000000000;
     const canonical_low_addr = 0xffff800000000000;
 
-    var PML4: *[512]PageMapLevel4Entry = undefined;
-
+    const PML4T = *[512]PageMapLevel4Entry;
     const PDPT = *[512]PageDirPointerTableEntry;
     const PDT = *[512]PageDirTableEntry;
     const PT = *[512]PageTableEntry;
+
+    var PML4: PML4T = undefined;
 
     fn init() void {
         // in this scopr, we find the limine PML4, and convert it to virtual address
@@ -388,7 +393,7 @@ pub const V_MEM = struct {
     pub fn translate_virtual_address(virtual_addr: usize) ?usize {
         const vaddr = VIRTUAL_ADDR.init(virtual_addr);
 
-        var pdpt: *[512]PageDirPointerTableEntry = undefined;
+        var pdpt: PDPT = undefined;
         {
             const pml4_entry = PML4.*[vaddr.pml4i];
 
@@ -399,7 +404,7 @@ pub const V_MEM = struct {
             pdpt = @ptrFromInt(paddr_2_high_half(pml4_entry.paddr * PAGE_SIZE));
         }
 
-        var pdt: *[512]PageDirTableEntry = undefined;
+        var pdt: PDT = undefined;
         {
             const pdpt_entry = pdpt.*[vaddr.pdpti];
 
@@ -414,7 +419,7 @@ pub const V_MEM = struct {
             pdt = @ptrFromInt(paddr_2_high_half(pdpt_entry.paddr * PAGE_SIZE));
         }
 
-        var pt: *[512]PageTableEntry = undefined;
+        var pt: PT = undefined;
         {
             const pdt_entry = pdt.*[vaddr.pdti];
             if (pdt_entry.present != 1) {
@@ -448,5 +453,11 @@ pub const V_MEM = struct {
             }
         }
         return true;
+    }
+
+    // zero one page
+    fn zero_page(vaddr: usize) void {
+        const ptr: PML4T = @ptrFromInt(vaddr);
+        @memset(ptr, PageMapLevel4Entry{});
     }
 };
