@@ -214,9 +214,9 @@ pub const V_MEM = struct {
             \\ privilege:   {s}
         , .{
             address,
-            if (code.present == 1) "protection" else "none present",
-            if (code.write == 1) "write" else "read",
-            if (code.user == 1) "user" else "kernel",
+            if (code.present) "protection" else "none present",
+            if (code.write) "write" else "read",
+            if (code.user) "user" else "kernel",
         });
     }
 
@@ -274,97 +274,97 @@ pub const V_MEM = struct {
     };
 
     const PageMapLevel4Entry = packed struct {
-        present: u1 = 0,
-        writeable: u1 = 0,
-        user_access: u1 = 0,
-        write_through: u1 = 0,
-        cache_disabled: u1 = 0,
-        accessed: u1 = 0,
-        ignored_1: u1 = 0,
-        reserved_1: u1 = 0,
+        present: bool = false,
+        writeable: bool = false,
+        user_access: bool = false,
+        write_through: bool = false,
+        cache_disabled: bool = false,
+        accessed: bool = false,
+        ignored_1: bool = false,
+        reserved_1: bool = false,
         ignored_2: u3 = 0,
-        HLAT: u1 = 0,
+        HLAT: bool = false,
         paddr: u40 = 0,
         ignored_3: u11 = 0,
-        execute_disable: u1 = 0,
+        execute_disable: bool = false,
     };
 
     const PageDirPointerTableEntry = packed struct {
-        present: u1,
-        writeable: u1,
-        user_access: u1,
-        write_through: u1,
-        cache_disabled: u1,
-        accessed: u1,
-        ignored_1: u1,
-        page_size: u1, // must be 0
-        ignored_2: u3,
-        HLAT: u1,
-        paddr: u40,
-        ignored_3: u11,
-        execute_disable: u1,
+        present: bool = false,
+        writeable: bool = false,
+        user_access: bool = false,
+        write_through: bool = false,
+        cache_disabled: bool = false,
+        accessed: bool = false,
+        ignored_1: bool = false,
+        page_size: bool = false, // must be 0
+        ignored_2: u3 = 0,
+        HLAT: bool = false,
+        paddr: u40 = 0,
+        ignored_3: u11 = 0,
+        execute_disable: bool = false,
     };
 
     const PageDirTableEntry = packed struct {
-        present: u1,
-        writeable: u1,
-        user_access: u1,
-        write_through: u1,
-        cache_disabled: u1,
-        accessed: u1,
-        ignored_1: u1,
-        page_size: u1, // must be 0
-        ignored_2: u3,
-        HLAT: u1,
-        paddr: u40,
-        ignored_3: u11,
-        execute_disable: u1,
+        present: bool = false,
+        writeable: bool = false,
+        user_access: bool = false,
+        write_through: bool = false,
+        cache_disabled: bool = false,
+        accessed: bool = false,
+        ignored_1: bool = false,
+        page_size: bool = false, // must be 0
+        ignored_2: u3 = 0,
+        HLAT: bool = false,
+        paddr: u40 = 0,
+        ignored_3: u11 = 0,
+        execute_disable: bool = false,
     };
 
     const PageTableEntry = packed struct {
-        present: u1,
-        writeable: u1,
-        user_access: u1,
-        write_through: u1,
-        cache_disabled: u1,
-        accessed: u1,
-        dirty: u1,
-        PAT: u1,
-        global: u1,
+        present: bool = false,
+        writeable: bool = false,
+        user_access: bool = false,
+        write_through: bool = false,
+        cache_disabled: bool = false,
+        accessed: bool = false,
+        dirty: bool = false,
+        PAT: bool = false,
+        global: bool = false,
         ignored_1: u3,
-        HLAT: u1,
+        HLAT: bool = false,
         paddr: u40,
         ignored_2: u7,
         protection: u4, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
-        execute_disable: u1,
+        execute_disable: bool = false,
     };
 
     /// Can only be used when a page fault occurs
     const ERROR_CODE = packed struct {
         // When set, the page fault was caused by a page-protection violation. When not set, it was caused by a non-present page.
-        present: u1,
+        present: bool = false,
         // When set, the page fault was caused by a write access. When not set, it was caused by a read access.
-        write: u1,
+        write: bool = false,
         // When set, the page fault was caused while CPL = 3. This does not necessarily mean that the page fault was a privilege violation.
-        user: u1,
+        user: bool = false,
         // When set, one or more page directory entries contain reserved bits which are set to 1. This only applies when the PSE or PAE flags in CR4 are set to 1.
-        reserved_write: u1,
+        reserved_write: bool = false,
         // When set, the page fault was caused by an instruction fetch. This only applies when the No-Execute bit is supported and enabled.
-        instruction_fetch: u1,
+        instruction_fetch: bool = false,
         // When set, the page fault was caused by a protection-key violation. The PKRU register (for user-mode accesses) or PKRS MSR (for supervisor-mode accesses) specifies the protection key rights
-        protection: u1,
+        protection: bool = false,
         // When set, the page fault was caused by a shadow stack access.
-        shadow_stack: u1,
+        shadow_stack: bool = false,
         // when set, the page fault was caused during HLAT paging.
-        HALT: u1,
+        HALT: bool = false,
         // reserved to zero
-        reserved_1: u7,
+        reserved_1: u7 = 0,
         // when set, the page fault was related to SGX.
         // A pivot by Intel in 2021 resulted in the deprecation of SGX from the 11th and 12th generation Intel Core Processors, but development continues on Intel Xeon for cloud and enterprise use.
-        SGX: u1,
+        SGX: bool = false,
         // reserved to zero
-        reserved_2: u16,
-        zero_padding: u32,
+        reserved_2: u16 = 0,
+        zero_padding: u32 = 0,
     };
 
     pub fn high_half_2_paddr(virtual_addr: usize) usize {
@@ -397,7 +397,7 @@ pub const V_MEM = struct {
         {
             const pml4_entry = PML4.*[vaddr.pml4i];
 
-            if (pml4_entry.present != 1) {
+            if (!pml4_entry.present) {
                 return null;
             }
 
@@ -408,11 +408,11 @@ pub const V_MEM = struct {
         {
             const pdpt_entry = pdpt.*[vaddr.pdpti];
 
-            if (pdpt_entry.present != 1) {
+            if (!pdpt_entry.present) {
                 return null;
             }
 
-            if (pdpt_entry.page_size == 1) {
+            if (pdpt_entry.page_size) {
                 return pdpt_entry.paddr * PAGE_SIZE + vaddr.offset_1G_page();
             }
 
@@ -422,11 +422,11 @@ pub const V_MEM = struct {
         var pt: PT = undefined;
         {
             const pdt_entry = pdt.*[vaddr.pdti];
-            if (pdt_entry.present != 1) {
+            if (!pdt_entry.present) {
                 return null;
             }
 
-            if (pdt_entry.page_size == 1) {
+            if (pdt_entry.page_size) {
                 return pdt_entry.paddr * PAGE_SIZE + vaddr.offset_2M_page();
             }
 
@@ -436,7 +436,7 @@ pub const V_MEM = struct {
         {
             var pt_entry = pt.*[vaddr.pti];
 
-            if (pt_entry.present != 1) {
+            if (!pt_entry.present) {
                 return null;
             }
 
