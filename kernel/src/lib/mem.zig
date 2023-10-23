@@ -395,7 +395,9 @@ pub const V_MEM = struct {
 
         var pdpt: PDPT = undefined;
         {
-            const pml4_entry = PML4.*[vaddr.pml4i];
+            const pml4_entry: *PageMapLevel4Entry = &PML4[vaddr.pml4i];
+
+            tty.println("{}", pml4_entry.*);
 
             if (!pml4_entry.present) {
                 return null;
@@ -406,7 +408,8 @@ pub const V_MEM = struct {
 
         var pdt: PDT = undefined;
         {
-            const pdpt_entry = pdpt.*[vaddr.pdpti];
+            const pdpt_entry: *PageDirPointerTableEntry = &pdpt[vaddr.pdpti];
+            tty.println("{}", pdpt_entry.*);
 
             if (!pdpt_entry.present) {
                 return null;
@@ -421,7 +424,9 @@ pub const V_MEM = struct {
 
         var pt: PT = undefined;
         {
-            const pdt_entry = pdt.*[vaddr.pdti];
+            const pdt_entry: *PageDirTableEntry = &pdt[vaddr.pdti];
+            tty.println("{}", pdt_entry.*);
+
             if (!pdt_entry.present) {
                 return null;
             }
@@ -434,7 +439,8 @@ pub const V_MEM = struct {
         }
 
         {
-            var pt_entry = pt.*[vaddr.pti];
+            var pt_entry: *PageTableEntry = &pt[vaddr.pti];
+            tty.println("{}", pt_entry.*);
 
             if (!pt_entry.present) {
                 return null;
@@ -453,6 +459,117 @@ pub const V_MEM = struct {
             }
         }
         return true;
+    }
+
+    pub fn map(physical: usize, virtual: usize, size: enum {
+        big,
+        medium,
+        small,
+    }) void {
+        _ = size;
+        lib.assert(@src(), is_aligned(physical));
+        lib.assert(@src(), is_aligned(virtual));
+
+        const vaddr = VIRTUAL_ADDR.init(virtual);
+
+        var pdpt: PDPT = undefined;
+
+        {
+            var pml4t_entry: *PageMapLevel4Entry = &PML4[vaddr.pml4i];
+
+            if (pml4t_entry.present) {
+                const paddr_pdpt = pml4t_entry.paddr * PAGE_SIZE;
+                const vaddr_pdpt = paddr_2_high_half(paddr_pdpt);
+                pdpt = @ptrFromInt(vaddr_pdpt);
+            } else {
+                pml4t_entry.present = true;
+                pml4t_entry.writeable = true;
+                pml4t_entry.accessed = true;
+                pml4t_entry.user_access = true;
+
+                const paddr_pdpt = P_MEM.allocate_page();
+                pml4t_entry.paddr = @truncate(paddr_pdpt / PAGE_SIZE);
+
+                const vaddr_pdpt = paddr_2_high_half(paddr_pdpt);
+
+                zero_page(vaddr_pdpt);
+
+                pdpt = @ptrFromInt(vaddr_pdpt);
+            }
+        }
+
+        var pdt: PDT = undefined;
+
+        {
+            var pdpt_entry: *PageDirPointerTableEntry = &pdpt[vaddr.pdpti];
+
+            if (pdpt_entry.present) {
+                if (pdpt_entry.page_size) {
+                    @panic("you want to remap the vaddr being used pdpt");
+                }
+                const paddr_pdt = pdpt_entry.paddr * PAGE_SIZE;
+                const vaddr_pdt = paddr_2_high_half(paddr_pdt);
+                pdt = @ptrFromInt(vaddr_pdt);
+            } else {
+                pdpt_entry.present = true;
+                pdpt_entry.writeable = true;
+                pdpt_entry.accessed = true;
+                pdpt_entry.user_access = true;
+
+                const paddr_pdt = P_MEM.allocate_page();
+                pdpt_entry.paddr = @truncate(paddr_pdt / PAGE_SIZE);
+
+                const vaddr_pdt = paddr_2_high_half(paddr_pdt);
+
+                zero_page(vaddr_pdt);
+
+                pdt = @ptrFromInt(vaddr_pdt);
+            }
+        }
+
+        var pt: PT = undefined;
+
+        {
+            var pdt_entry: *PageDirTableEntry = &pdt[vaddr.pdti];
+            if (pdt_entry.present) {
+                if (pdt_entry.page_size) {
+                    @panic("you want to remap the vaddr being used on pdt");
+                }
+
+                const paddr_pt = pdt_entry.paddr * PAGE_SIZE;
+                const vaddr_pt = paddr_2_high_half(paddr_pt);
+                pt = @ptrFromInt(vaddr_pt);
+            } else {
+                pdt_entry.present = true;
+                pdt_entry.writeable = true;
+                pdt_entry.accessed = true;
+                pdt_entry.user_access = true;
+
+                const paddr_pt = P_MEM.allocate_page();
+                pdt_entry.paddr = @truncate(paddr_pt / PAGE_SIZE);
+
+                const vaddr_pt = paddr_2_high_half(paddr_pt);
+
+                zero_page(vaddr_pt);
+
+                pt = @ptrFromInt(vaddr_pt);
+            }
+        }
+
+        {
+            var pt_entry: *PageTableEntry = &pt[vaddr.pti];
+            if (pt_entry.present) {
+                @panic("you want to remap the vaddr being used on pt");
+            } else {
+                pt_entry.present = true;
+                pt_entry.writeable = true;
+                pt_entry.accessed = true;
+                pt_entry.user_access = true;
+                pt_entry.paddr = @truncate(physical / PAGE_SIZE);
+            }
+        }
+
+        // cpu.invlpg(virtual);
     }
 
     // zero one page

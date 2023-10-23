@@ -3,9 +3,33 @@ const println = lib.tty.println;
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
-
-    // test for Virtual_Addr
+    // test v mem map
     if (false) {
+        var vaddr: usize = 0x1000;
+        const paddr = lib.mem.P_MEM.allocate_page();
+        println("0x{x}", paddr);
+        lib.mem.V_MEM.map(paddr, vaddr, .small);
+
+        var translate_res = lib.mem.V_MEM.translate_virtual_address(vaddr);
+
+        var ptr: *u8 = @ptrFromInt(vaddr);
+        println("value is {}", ptr.*);
+
+        if (translate_res) |addr| {
+            if (addr == paddr) {
+                println("test vmem map is ok", null);
+            } else {
+                println("test vmem map fails, 0x{x}", addr);
+            }
+        } else {
+            println("test vmem map fails, return is null", null);
+        }
+
+        _=lib.mem.V_MEM.translate_virtual_address(0xffff_8000_0000_1000);
+    }
+
+    // test for Virtual_Addr translate
+    if (true) {
         const addr = 0xffff_8000_5000_0000;
         // lib.log.debug("{}", lib.mem.V_MEM.Virtual_Addr.init(addr));
         var result = lib.mem.V_MEM.translate_virtual_address(addr);
@@ -56,11 +80,19 @@ pub inline fn test_kernel() void {
     // test for physical memory allocate
     if (false) {
         var tmp = lib.mem.P_MEM.allocate_page();
-        if (tmp != 0) {
-            println("allocate physical memory, addr is: 0x{x}", tmp);
-            lib.mem.P_MEM.free_page(tmp);
+        var tmp1 = lib.mem.P_MEM.allocate_page();
+        var tmp2 = lib.mem.P_MEM.allocate_page();
+        if (tmp == tmp1) {
+            println("allocate_page test fails", null);
         } else {
-            println("allocate memory fails", null);
+            if (tmp != 0) {
+                println("allocate physical memory, addr is: 0x{x}", tmp);
+                println("allocate physical memory, addr is: 0x{x}", tmp1);
+                println("allocate physical memory, addr is: 0x{x}", tmp2);
+                lib.mem.P_MEM.free_page(tmp);
+            } else {
+                println("allocate memory fails", null);
+            }
         }
     }
 

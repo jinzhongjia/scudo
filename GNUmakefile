@@ -43,6 +43,10 @@ bochs: $(IMAGE_NAME).iso
 asm: $(IMAGE_NAME).iso
 	qemu-system-x86_64 -M q35 -m 256M -d in_asm,int -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
 
+.PHONY: debug 
+debug: $(IMAGE_NAME).iso
+	qemu-system-x86_64 -M q35 -m 256M -d in_asm,int -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -s -S 
+
 .PHONY: run-uefi
 run-uefi: ovmf $(IMAGE_NAME).iso
 	qemu-system-x86_64 -M q35 -m 256M -bios ovmf/OVMF.fd -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
