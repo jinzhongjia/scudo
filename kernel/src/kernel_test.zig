@@ -5,7 +5,7 @@ const println = lib.tty.println;
 pub inline fn test_kernel() void {
 
     // test v mem map
-    if (true) {
+    if (false) {
         var vaddr: usize = 0xf0003000;
         // const paddr = lib.mem.P_MEM.allocate_page();
         const paddr = 0x6000;
@@ -17,7 +17,7 @@ pub inline fn test_kernel() void {
 
     // test for Virtual_Addr translate
     if (false) {
-        const addr = 0x10000;
+        const addr = 0xffff_8000_0001_0000;
         var result = lib.mem.V_MEM.translate_virtual_address(addr);
         if (result) |val| {
             if (val != 0x10000) {

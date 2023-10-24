@@ -289,6 +289,12 @@ pub const V_MEM = struct {
         execute_disable: bool = false,
     };
 
+    comptime {
+        if (@sizeOf(PageMapLevel4Entry) != 8) {
+            @panic("PageMapLevel4Entry size is not correct");
+        }
+    }
+
     const PageDirPointerTableEntry = packed struct {
         present: bool = false,
         writeable: bool = false,
@@ -305,6 +311,12 @@ pub const V_MEM = struct {
         execute_disable: bool = false,
     };
 
+    comptime {
+        if (@sizeOf(PageDirPointerTableEntry) != 8) {
+            @panic("PageDirPointerTableEntry size is not correct");
+        }
+    }
+
     const PageDirTableEntry = packed struct {
         present: bool = false,
         writeable: bool = false,
@@ -320,6 +332,12 @@ pub const V_MEM = struct {
         ignored_3: u11 = 0,
         execute_disable: bool = false,
     };
+
+    comptime {
+        if (@sizeOf(PageDirTableEntry) != 8) {
+            @panic("PageDirTableEntry size is not correct");
+        }
+    }
 
     const PageTableEntry = packed struct {
         present: bool = false,
@@ -338,6 +356,12 @@ pub const V_MEM = struct {
         protection: u4 = 0, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
         execute_disable: bool = false,
     };
+
+    comptime {
+        if (@sizeOf(PageTableEntry) != 8) {
+            @panic("PageTableEntry size is not correct");
+        }
+    }
 
     /// Can only be used when a page fault occurs
     const ERROR_CODE = packed struct {
@@ -366,6 +390,12 @@ pub const V_MEM = struct {
         reserved_2: u16 = 0,
         zero_padding: u32 = 0,
     };
+
+    comptime {
+        if (@sizeOf(ERROR_CODE) != 8) {
+            @panic("error_code size is not correct");
+        }
+    }
 
     pub fn high_half_2_paddr(virtual_addr: usize) usize {
         if (virtual_addr < canonical_high_addr) {
@@ -397,9 +427,6 @@ pub const V_MEM = struct {
         {
             const pml4_entry: *PageMapLevel4Entry = &PML4[vaddr.pml4i];
 
-            tty.println("{}", pml4_entry.*);
-            tty.println("", null);
-
             if (!pml4_entry.present) {
                 return null;
             }
@@ -410,8 +437,6 @@ pub const V_MEM = struct {
         var pdt: PDT = undefined;
         {
             const pdpt_entry: *PageDirPointerTableEntry = &pdpt[vaddr.pdpti];
-            tty.println("{}", pdpt_entry.*);
-            tty.println("", null);
 
             if (!pdpt_entry.present) {
                 return null;
@@ -427,8 +452,6 @@ pub const V_MEM = struct {
         var pt: PT = undefined;
         {
             const pdt_entry: *PageDirTableEntry = &pdt[vaddr.pdti];
-            tty.println("{}", pdt_entry.*);
-            tty.println("", null);
 
             if (!pdt_entry.present) {
                 return null;
@@ -443,8 +466,6 @@ pub const V_MEM = struct {
 
         {
             const pt_entry: *PageTableEntry = &pt[vaddr.pti];
-            tty.println("{}", pt_entry.*);
-            tty.println("", null);
 
             if (!pt_entry.present) {
                 return null;

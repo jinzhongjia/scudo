@@ -46,19 +46,19 @@ asm: $(IMAGE_NAME).iso
 
 .PHONY: debug 
 debug: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 256M -d in_asm,int -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -s -S 
+	qemu-system-x86_64 -M q35 -m 256M -d in_asm,int -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -s -S
 
 .PHONY: run-uefi
 run-uefi: ovmf $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 256M -bios ovmf/OVMF.fd -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
+	qemu-system-x86_64 -M q35 -m 256M -bios ovmf/OVMF.fd -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -monitor stdio 
 
 .PHONY: run-hdd
 run-hdd: $(IMAGE_NAME).hdd
-	qemu-system-x86_64 -M q35 -m 256M -hda $(IMAGE_NAME).hdd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
+	qemu-system-x86_64 -M q35 -m 256M -hda $(IMAGE_NAME).hdd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -monitor stdio 
 
 .PHONY: run-hdd-uefi
 run-hdd-uefi: ovmf $(IMAGE_NAME).hdd
-	qemu-system-x86_64 -M q35 -m 256M -bios ovmf/OVMF.fd -hda $(IMAGE_NAME).hdd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
+	qemu-system-x86_64 -M q35 -m 256M -bios ovmf/OVMF.fd -hda $(IMAGE_NAME).hdd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -monitor stdio 
 
 ovmf:
 	mkdir -p ovmf
