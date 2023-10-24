@@ -65,9 +65,13 @@ pub inline fn test_kernel() void {
 
     // test for physical memory allocate
     if (false) {
+        println("{}", lib.mem.P_MEM.get_free_pages());
         var tmp = lib.mem.P_MEM.allocate_page();
+        println("{}", lib.mem.P_MEM.get_free_pages());
         var tmp1 = lib.mem.P_MEM.allocate_page();
+        println("{}", lib.mem.P_MEM.get_free_pages());
         var tmp2 = lib.mem.P_MEM.allocate_page();
+        println("{}", lib.mem.P_MEM.get_free_pages());
         if (tmp == tmp1) {
             println("allocate_page test fails", null);
         } else {
@@ -76,6 +80,11 @@ pub inline fn test_kernel() void {
                 println("allocate physical memory, addr is: 0x{x}", tmp1);
                 println("allocate physical memory, addr is: 0x{x}", tmp2);
                 lib.mem.P_MEM.free_page(tmp);
+                println("{}", lib.mem.P_MEM.get_free_pages());
+                lib.mem.P_MEM.free_page(tmp1);
+                println("{}", lib.mem.P_MEM.get_free_pages());
+                lib.mem.P_MEM.free_page(tmp2);
+                println("{}", lib.mem.P_MEM.get_free_pages());
             } else {
                 println("allocate memory fails", null);
             }

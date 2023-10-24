@@ -149,6 +149,10 @@ pub const P_MEM = struct {
         memory_map[map_index] = 0;
         free_pages += 1;
     }
+
+    pub fn get_free_pages() u64 {
+        return free_pages;
+    }
 };
 
 pub fn is_aligned(addr: usize) bool {
