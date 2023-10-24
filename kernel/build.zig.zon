@@ -1,5 +1,5 @@
 .{
-    .name = "limine-zig-barebones",
+    .name = "zos",
     .version = "0.0.1",
     .dependencies = .{
         .limine = .{
