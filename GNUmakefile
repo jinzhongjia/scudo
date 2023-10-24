@@ -33,7 +33,8 @@ all-hdd: $(IMAGE_NAME).hdd
 
 .PHONY: run
 run: $(IMAGE_NAME).iso
-	qemu-system-x86_64 -M q35 -m 256M -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0
+	clear
+	qemu-system-x86_64 -M q35 -m 256M -cdrom $(IMAGE_NAME).iso -boot d -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -monitor stdio 
 
 .PHONY: bochs
 bochs: $(IMAGE_NAME).iso

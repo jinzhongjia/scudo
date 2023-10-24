@@ -3,41 +3,27 @@ const println = lib.tty.println;
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
+
     // test v mem map
-    if (false) {
-        var vaddr: usize = 0x1000;
-        const paddr = lib.mem.P_MEM.allocate_page();
-        println("0x{x}", paddr);
+    if (true) {
+        var vaddr: usize = 0xf0003000;
+        // const paddr = lib.mem.P_MEM.allocate_page();
+        const paddr = 0x6000;
         lib.mem.V_MEM.map(paddr, vaddr, .small);
 
-        var translate_res = lib.mem.V_MEM.translate_virtual_address(vaddr);
-
         var ptr: *u8 = @ptrFromInt(vaddr);
-        println("value is {}", ptr.*);
-
-        if (translate_res) |addr| {
-            if (addr == paddr) {
-                println("test vmem map is ok", null);
-            } else {
-                println("test vmem map fails, 0x{x}", addr);
-            }
-        } else {
-            println("test vmem map fails, return is null", null);
-        }
-
-        _=lib.mem.V_MEM.translate_virtual_address(0xffff_8000_0000_1000);
+        println("{}", ptr.*);
     }
 
     // test for Virtual_Addr translate
-    if (true) {
-        const addr = 0xffff_8000_5000_0000;
-        // lib.log.debug("{}", lib.mem.V_MEM.Virtual_Addr.init(addr));
+    if (false) {
+        const addr = 0x10000;
         var result = lib.mem.V_MEM.translate_virtual_address(addr);
         if (result) |val| {
-            if (val != 0x5000_0000) {
+            if (val != 0x10000) {
                 println("test virtual addr translate fails, 0x{x}", val);
             } else {
-                println("test for virtual addr is ok", null);
+                println("test for virtual addr translate is ok", null);
             }
         } else {
             println("test virtual addr translate fails, return val is null", null);

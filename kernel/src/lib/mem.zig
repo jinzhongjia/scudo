@@ -331,11 +331,11 @@ pub const V_MEM = struct {
         dirty: bool = false,
         PAT: bool = false,
         global: bool = false,
-        ignored_1: u3,
+        ignored_1: u2 = 0,
         HLAT: bool = false,
-        paddr: u40,
-        ignored_2: u7,
-        protection: u4, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
+        paddr: u40 = 0,
+        ignored_2: u7 = 0,
+        protection: u4 = 0, // if CR4.PKE = 1 or CR4.PKS = 1, this may control the page’s access rights
         execute_disable: bool = false,
     };
 
@@ -398,6 +398,7 @@ pub const V_MEM = struct {
             const pml4_entry: *PageMapLevel4Entry = &PML4[vaddr.pml4i];
 
             tty.println("{}", pml4_entry.*);
+            tty.println("", null);
 
             if (!pml4_entry.present) {
                 return null;
@@ -410,6 +411,7 @@ pub const V_MEM = struct {
         {
             const pdpt_entry: *PageDirPointerTableEntry = &pdpt[vaddr.pdpti];
             tty.println("{}", pdpt_entry.*);
+            tty.println("", null);
 
             if (!pdpt_entry.present) {
                 return null;
@@ -426,6 +428,7 @@ pub const V_MEM = struct {
         {
             const pdt_entry: *PageDirTableEntry = &pdt[vaddr.pdti];
             tty.println("{}", pdt_entry.*);
+            tty.println("", null);
 
             if (!pdt_entry.present) {
                 return null;
@@ -439,8 +442,9 @@ pub const V_MEM = struct {
         }
 
         {
-            var pt_entry: *PageTableEntry = &pt[vaddr.pti];
+            const pt_entry: *PageTableEntry = &pt[vaddr.pti];
             tty.println("{}", pt_entry.*);
+            tty.println("", null);
 
             if (!pt_entry.present) {
                 return null;
@@ -471,105 +475,80 @@ pub const V_MEM = struct {
         lib.assert(@src(), is_aligned(virtual));
 
         const vaddr = VIRTUAL_ADDR.init(virtual);
+        tty.println("{}", vaddr);
+
+        var pml4 = PML4;
+        var pml4_entry: *PageMapLevel4Entry = undefined;
 
         var pdpt: PDPT = undefined;
-
-        {
-            var pml4t_entry: *PageMapLevel4Entry = &PML4[vaddr.pml4i];
-
-            if (pml4t_entry.present) {
-                const paddr_pdpt = pml4t_entry.paddr * PAGE_SIZE;
-                const vaddr_pdpt = paddr_2_high_half(paddr_pdpt);
-                pdpt = @ptrFromInt(vaddr_pdpt);
-            } else {
-                pml4t_entry.present = true;
-                pml4t_entry.writeable = true;
-                pml4t_entry.accessed = true;
-                pml4t_entry.user_access = true;
-
-                const paddr_pdpt = P_MEM.allocate_page();
-                pml4t_entry.paddr = @truncate(paddr_pdpt / PAGE_SIZE);
-
-                const vaddr_pdpt = paddr_2_high_half(paddr_pdpt);
-
-                zero_page(vaddr_pdpt);
-
-                pdpt = @ptrFromInt(vaddr_pdpt);
-            }
-        }
+        var pdpt_entry: *PageDirPointerTableEntry = undefined;
 
         var pdt: PDT = undefined;
-
-        {
-            var pdpt_entry: *PageDirPointerTableEntry = &pdpt[vaddr.pdpti];
-
-            if (pdpt_entry.present) {
-                if (pdpt_entry.page_size) {
-                    @panic("you want to remap the vaddr being used pdpt");
-                }
-                const paddr_pdt = pdpt_entry.paddr * PAGE_SIZE;
-                const vaddr_pdt = paddr_2_high_half(paddr_pdt);
-                pdt = @ptrFromInt(vaddr_pdt);
-            } else {
-                pdpt_entry.present = true;
-                pdpt_entry.writeable = true;
-                pdpt_entry.accessed = true;
-                pdpt_entry.user_access = true;
-
-                const paddr_pdt = P_MEM.allocate_page();
-                pdpt_entry.paddr = @truncate(paddr_pdt / PAGE_SIZE);
-
-                const vaddr_pdt = paddr_2_high_half(paddr_pdt);
-
-                zero_page(vaddr_pdt);
-
-                pdt = @ptrFromInt(vaddr_pdt);
-            }
-        }
+        var pdt_entry: *PageDirTableEntry = undefined;
 
         var pt: PT = undefined;
+        var pt_entry: *PageTableEntry = undefined;
 
-        {
-            var pdt_entry: *PageDirTableEntry = &pdt[vaddr.pdti];
-            if (pdt_entry.present) {
-                if (pdt_entry.page_size) {
-                    @panic("you want to remap the vaddr being used on pdt");
-                }
+        pml4_entry = &pml4[vaddr.pml4i];
+        if (pml4_entry.present) {
+            pdpt = @ptrFromInt(paddr_2_high_half(pml4_entry.paddr * PAGE_SIZE));
+        } else {
+            const paddr_tmp = P_MEM.allocate_page();
 
-                const paddr_pt = pdt_entry.paddr * PAGE_SIZE;
-                const vaddr_pt = paddr_2_high_half(paddr_pt);
-                pt = @ptrFromInt(vaddr_pt);
-            } else {
-                pdt_entry.present = true;
-                pdt_entry.writeable = true;
-                pdt_entry.accessed = true;
-                pdt_entry.user_access = true;
+            pml4_entry.present = true;
+            pml4_entry.writeable = true;
+            pml4_entry.paddr = @truncate(paddr_tmp / PAGE_SIZE);
 
-                const paddr_pt = P_MEM.allocate_page();
-                pdt_entry.paddr = @truncate(paddr_pt / PAGE_SIZE);
+            const vaddr_tmp = paddr_2_high_half(paddr_tmp);
+            zero_page(vaddr_tmp);
 
-                const vaddr_pt = paddr_2_high_half(paddr_pt);
-
-                zero_page(vaddr_pt);
-
-                pt = @ptrFromInt(vaddr_pt);
-            }
+            pdpt = @ptrFromInt(vaddr_tmp);
         }
 
-        {
-            var pt_entry: *PageTableEntry = &pt[vaddr.pti];
-            if (pt_entry.present) {
-                @panic("you want to remap the vaddr being used on pt");
-            } else {
-                pt_entry.present = true;
-                pt_entry.writeable = true;
-                pt_entry.accessed = true;
-                pt_entry.user_access = true;
-                pt_entry.paddr = @truncate(physical / PAGE_SIZE);
-            }
+        pdpt_entry = &pdpt[vaddr.pdpti];
+        if (pdpt_entry.present) {
+            pdt = @ptrFromInt(paddr_2_high_half(pdpt_entry.paddr * PAGE_SIZE));
+        } else {
+            const paddr_tmp = P_MEM.allocate_page();
+
+            pdpt_entry.present = true;
+            pdpt_entry.writeable = true;
+            pdpt_entry.paddr = @truncate(paddr_tmp / PAGE_SIZE);
+
+            const vaddr_tmp = paddr_2_high_half(paddr_tmp);
+            zero_page(vaddr_tmp);
+
+            pdt = @ptrFromInt(vaddr_tmp);
         }
 
-        // cpu.invlpg(virtual);
+        pdt_entry = &pdt[vaddr.pdti];
+        if (pdt_entry.present) {
+            pt = @ptrFromInt(paddr_2_high_half(pdt_entry.paddr * PAGE_SIZE));
+        } else {
+            const paddr_tmp = P_MEM.allocate_page();
+
+            pdt_entry.present = true;
+            pdt_entry.writeable = true;
+            pdt_entry.paddr = @truncate(paddr_tmp / PAGE_SIZE);
+
+            const vaddr_tmp = paddr_2_high_half(paddr_tmp);
+            zero_page(vaddr_tmp);
+
+            pt = @ptrFromInt(vaddr_tmp);
+        }
+
+        pt_entry = &pt[vaddr.pti];
+        tty.println("ptentry addr:0x{x}", @intFromPtr(pt_entry));
+        if (pt_entry.present) {
+            @panic("you want to remap an present page");
+        } else {
+            const paddr_tmp = P_MEM.allocate_page();
+            tty.println("paddr_tmp 0x{x}", paddr_tmp);
+
+            pt_entry.present = true;
+            pt_entry.writeable = true;
+            pt_entry.paddr = @truncate(physical / PAGE_SIZE);
+        }
     }
 
     // zero one page
