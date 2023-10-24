@@ -500,7 +500,6 @@ pub const V_MEM = struct {
         lib.assert(@src(), is_aligned(virtual));
 
         const vaddr = VIRTUAL_ADDR.init(virtual);
-        tty.println("{}", vaddr);
 
         var pml4 = PML4;
         var pml4_entry: *PageMapLevel4Entry = undefined;
@@ -563,13 +562,9 @@ pub const V_MEM = struct {
         }
 
         pt_entry = &pt[vaddr.pti];
-        tty.println("ptentry addr:0x{x}", @intFromPtr(pt_entry));
         if (pt_entry.present) {
             @panic("you want to remap an present page");
         } else {
-            const paddr_tmp = P_MEM.allocate_page();
-            tty.println("paddr_tmp 0x{x}", paddr_tmp);
-
             pt_entry.present = true;
             pt_entry.writeable = true;
             pt_entry.paddr = @truncate(physical / PAGE_SIZE);

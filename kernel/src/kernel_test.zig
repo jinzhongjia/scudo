@@ -12,7 +12,7 @@ pub inline fn test_kernel() void {
         lib.mem.V_MEM.map(paddr, vaddr, .small);
 
         var ptr: *u8 = @ptrFromInt(vaddr);
-        println("{}", ptr.*);
+        println("virtual address of 0x{x} is {}", .{vaddr, ptr.*});
     }
 
     // test for Virtual_Addr translate
