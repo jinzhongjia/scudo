@@ -293,6 +293,7 @@ const PIC = struct {
         cpu.outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
 
         // ICW2: Interrupt Vector offsets of IRQs.
+        // we will use this remap the pic's offset
         cpu.outb(PIC1_DATA, IRQ_0);
         cpu.outb(PIC2_DATA, IRQ_8);
 
