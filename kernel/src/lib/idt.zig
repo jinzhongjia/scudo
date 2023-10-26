@@ -10,7 +10,7 @@ pub const Register_IRQ = PIC.registerIRQ;
 pub fn init() void {
     // We set up the entire idt here to prevent unknown problems.
     inline for (0..idt.len) |index| {
-        idt_set_descriptor(index, make_undefined_handle(@intCast(index)).handle, @intFromEnum(FLAGS.interrupt_gate));
+        idt_set_descriptor(index, make_undefined_handle(@intCast(index)), @intFromEnum(FLAGS.interrupt_gate));
     }
 
     // note: we have set default limit through zig's struct field default value
@@ -27,12 +27,12 @@ pub fn init() void {
     cpu.sti();
 }
 
-fn make_undefined_handle(comptime num: u8) type {
+fn make_undefined_handle(comptime num: u8) fn () callconv(.C) void {
     return struct {
         fn handle() callconv(.C) void {
             tty.panicf("An undefined interrupt was triggered, interrupt id is {d}", num);
         }
-    };
+    }.handle;
 }
 
 const GDT_OFFSET_KERNEL_CODE: u16 = 0b0000_0000_0010_1000;
