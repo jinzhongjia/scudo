@@ -19,7 +19,7 @@ pub fn init() void {
     PIC.remap();
 
     // this function will install all custom interrupt handle function
-    install();
+    // install();
 
     // use lidt to load idtr
     cpu.lidt(@intFromPtr(&idtr));
@@ -27,9 +27,42 @@ pub fn init() void {
     cpu.sti();
 }
 
+// this function must be used at comptime
 fn make_undefined_handle(comptime num: u8) fn () callconv(.C) void {
+    const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
     return struct {
         fn handle() callconv(.C) void {
+            var rbp: usize = cpu.rbp();
+            const error_code: ?*usize = for (error_code_list) |value| {
+                if (value == num) {
+                    rbp += 8;
+                    break @ptrFromInt(rbp);
+                }
+            } else null;
+
+            const rip: *usize = @ptrFromInt(rbp + 8);
+            const cs: *usize = @ptrFromInt(rbp + 16);
+            const eflags: *usize = @ptrFromInt(rbp + 24);
+            const rsp: *usize = @ptrFromInt(rbp + 32);
+            const ss: *usize = @ptrFromInt(rbp + 40);
+
+            if (error_code) |value| {
+                tty.println("error code is 0x{x}", value.*);
+            }
+
+            tty.println(
+                \\rip is 0x{x}"
+                \\cs is 0x{x}
+                \\eflags is 0x{x}
+                \\rsp is 0x{x}
+                \\ss is 0x{x}
+            , .{
+                rip.*,
+                cs.*,
+                eflags.*,
+                rsp.*,
+                ss.*,
+            });
             tty.panicf("An undefined interrupt was triggered, interrupt id is {d}", num);
         }
     }.handle;

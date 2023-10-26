@@ -66,6 +66,12 @@ pub inline fn invlpg(v_addr: usize) void {
     );
 }
 
+pub inline fn rbp() usize {
+    return asm volatile ("mov %%rbp, %[result]"
+        : [result] "=r" (-> usize),
+    );
+}
+
 const CPUID = extern struct {
     eax: u32,
     ebx: u32,
