@@ -1,4 +1,5 @@
 const lib = @import("lib.zig");
+const cpu = @import("cpu.zig");
 const println = lib.tty.println;
 
 /// this is a test function for kernel
@@ -12,7 +13,7 @@ pub inline fn test_kernel() void {
         lib.mem.V_MEM.map(paddr, vaddr, .small);
 
         var ptr: *u8 = @ptrFromInt(vaddr);
-        println("virtual address of 0x{x} is {}", .{vaddr, ptr.*});
+        println("virtual address of 0x{x} is {}", .{ vaddr, ptr.* });
     }
 
     // test for Virtual_Addr translate

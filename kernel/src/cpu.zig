@@ -204,3 +204,8 @@ pub inline fn stopCPU() noreturn {
             ::: "memory");
     }
 }
+
+pub inline fn has_apic() bool {
+    var res = CPUID.cpuid(1);
+    return res.edx & 0x100 != 0;
+}
