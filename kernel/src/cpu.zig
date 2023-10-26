@@ -209,3 +209,27 @@ pub inline fn has_apic() bool {
     var res = CPUID.cpuid(1);
     return res.edx & 0x100 != 0;
 }
+
+pub inline fn read_MSR(msr: u32) void {
+    var low: u32 = undefined;
+    var high: u32 = undefined;
+
+    asm volatile ("rdmsr"
+        : [_] "={eax}" (low),
+          [_] "={edx}" (high),
+        : [_] "{ecx}" (msr),
+    );
+    return (@as(u64, high) << 32) | low;
+}
+
+pub inline fn write_MSR(msr: u32, value: u64) void {
+    const low = @as(u32, @truncate(value));
+    const high = @as(u32, @truncate(value >> 32));
+
+    asm volatile ("wrmsr"
+        :
+        : [_] "{eax}" (low),
+          [_] "{edx}" (high),
+          [_] "{ecx}" (msr),
+    );
+}
