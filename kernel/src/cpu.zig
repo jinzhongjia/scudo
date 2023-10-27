@@ -72,6 +72,7 @@ pub inline fn rbp() usize {
     );
 }
 
+// before use this, we need to call check function
 pub const CPUID = extern struct {
     eax: u32,
     ebx: u32,
