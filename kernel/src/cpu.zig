@@ -72,7 +72,7 @@ pub inline fn rbp() usize {
     );
 }
 
-const CPUID = extern struct {
+pub const CPUID = extern struct {
     eax: u32,
     ebx: u32,
     edx: u32,
@@ -94,7 +94,7 @@ const CPUID = extern struct {
         var ecx: u32 = undefined;
 
         asm volatile (
-            \\cpuid
+            \\ cpuid
             : [eax] "={eax}" (eax),
               [ebx] "={ebx}" (ebx),
               [edx] "={edx}" (edx),
@@ -108,6 +108,25 @@ const CPUID = extern struct {
             .edx = edx,
             .ecx = ecx,
         };
+    }
+
+    pub inline fn check_available() bool {
+        var res: usize = asm volatile (
+            \\ pushfq
+            \\ pushfq
+            \\ xorq $0x200000, (%%rsp)
+            \\ popfq
+            \\ pushfq
+            \\ pop %%rax
+            \\ xorq (%%rsp), %%rax
+            \\ popfq
+            \\ andq $0x200000, %%rax
+            \\ mov %%rax, %[result]
+            : [result] "=r" (-> usize),
+            :
+            : "memory", "rsp"
+        );
+        return res != 0;
     }
 };
 
@@ -205,7 +224,7 @@ pub inline fn stopCPU() noreturn {
     }
 }
 
-pub inline fn has_apic() bool {
+pub inline fn check_apic() bool {
     var res = CPUID.cpuid(1);
     return res.edx & 0x100 != 0;
 }
