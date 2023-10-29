@@ -1,9 +1,19 @@
+const builtin = @import("builtin");
 const lib = @import("lib.zig");
 const cpu = @import("cpu.zig");
 const println = lib.tty.println;
 
+const log = lib.log.scoped(.ZOS);
+
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
+    if (builtin.mode != .Debug) {
+        lib.tty.clear();
+    }
+
+    log.debug("build mode {s}", @tagName(builtin.mode));
+
+    // println("0x{x}", cpu.IA32_APIC_BASE.read().getAddress());
 
     // test v mem map
     if (false) {

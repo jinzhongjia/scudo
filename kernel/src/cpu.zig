@@ -288,3 +288,30 @@ pub const MSR = struct {
         };
     }
 };
+
+pub const IA32_APIC_BASE = packed struct(u64) {
+    reserved0: u8 = 0,
+    bsp: bool = false,
+    reserved1: u1 = 0,
+    extended: bool = false,
+    global_enable: bool = false,
+    address: u24,
+    reserved2: u28 = 0,
+
+    pub const msr = MSR.init(0x0000001B);
+
+    pub inline fn read() IA32_APIC_BASE {
+        const result = msr.read();
+        const typed_result = @as(IA32_APIC_BASE, @bitCast(result));
+        return typed_result;
+    }
+
+    pub inline fn write(typed_value: IA32_APIC_BASE) void {
+        const value = @as(u64, @bitCast(typed_value));
+        msr.write(value);
+    }
+
+    pub inline fn getAddress(ia32_apic_base: IA32_APIC_BASE) usize {
+        return @as(usize, ia32_apic_base.address) << @bitOffsetOf(IA32_APIC_BASE, "address");
+    }
+};
