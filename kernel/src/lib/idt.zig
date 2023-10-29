@@ -16,7 +16,11 @@ pub fn init() void {
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
-    PIC.init();
+    if (cpu.check_apic()) {
+        APIC.init();
+    } else {
+        PIC.init();
+    }
 
     // use lidt to load idtr
     cpu.lidt(@intFromPtr(&idtr));
@@ -505,6 +509,15 @@ const PIC = struct {
         idt_set_descriptor(47, isr47, @intFromEnum(FLAGS.interrupt_gate));
         // syscall
         idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
+    }
+};
+
+pub const APIC = struct {
+    pub fn init() void {
+        // TODO: more
+
+        // disable 8259A
+        PIC.remap();
     }
 };
 
