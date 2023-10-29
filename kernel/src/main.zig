@@ -10,6 +10,9 @@ pub fn main() noreturn {
     if (!cpu.CPUID.check_available()) {
         @panic("The current computer does not support the cpuid command");
     }
+    if (!cpu.MSR.is_avaiable()) {
+        @panic("The current computer does not support the MSR");
+    }
     lib.idt.init();
     lib.clock.init();
     lib.sound.init();
