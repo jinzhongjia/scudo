@@ -3,7 +3,7 @@ const idt = @import("idt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 const lib = @import("../lib.zig");
-const config = @import("config.zig").mem;
+const config = @import("config").mem;
 
 pub const PAGE_SIZE = 0x1000;
 

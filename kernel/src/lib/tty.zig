@@ -5,7 +5,7 @@ const fmt = std.fmt;
 const framebuffer = @import("tty/framebuffer.zig");
 const font = @import("tty/font.zig");
 const cpu = @import("../cpu.zig");
-const config = @import("config.zig");
+const config = @import("config");
 
 var maxHeight: u32 = undefined;
 var maxWidth: u32 = undefined;

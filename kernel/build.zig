@@ -1,6 +1,5 @@
 const std = @import("std");
 
-
 pub fn build(b: *std.Build) !void {
     // Define a freestanding x86_64 cross-compilation target.
     var target: std.zig.CrossTarget = .{
@@ -31,6 +30,9 @@ pub fn build(b: *std.Build) !void {
     kernel.code_model = .kernel;
 
     kernel.addModule("limine", limine.module("limine"));
+    kernel.addAnonymousModule("config", .{
+        .source_file = std.Build.LazyPath.relative("config.zig"),
+    });
     kernel.setLinkerScriptPath(.{ .path = "linker.ld" });
     kernel.pie = true;
 

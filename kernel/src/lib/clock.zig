@@ -1,5 +1,5 @@
 const cpu = @import("../cpu.zig");
-const config = @import("./config.zig");
+const config = @import("config");
 const idt = @import("idt.zig");
 
 pub fn init() void {

@@ -1,5 +1,5 @@
 const limine = @import("limine");
-const config = @import("lib.zig").config;
+const config = @import("config");
 
 export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
@@ -316,9 +316,9 @@ pub const IA32_APIC_BASE = packed struct(u64) {
     }
 };
 
-/// Unfortunately, QEMU does not emulate x2apic. 
-/// You have to use KVM (or a different emulator). 
-/// You might not need to switch to a physical machine. 
+/// Unfortunately, QEMU does not emulate x2apic.
+/// You have to use KVM (or a different emulator).
+/// You might not need to switch to a physical machine.
 /// Some VMs support nested virtualization, which would allow you to use KVM inside your VM
 pub fn x2APIC_available() bool {
     return CPUID.cpuid(1).ecx & 0x100000 != 0;
