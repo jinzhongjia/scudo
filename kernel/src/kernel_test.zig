@@ -3,7 +3,7 @@ const lib = @import("lib.zig");
 const cpu = @import("cpu.zig");
 const println = lib.tty.println;
 
-const log = lib.log.scoped(.ZOS);
+const log = lib.log.scoped(.scudo);
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
