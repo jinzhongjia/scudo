@@ -292,7 +292,7 @@ pub const MSR = struct {
 pub const IA32_APIC_BASE = packed struct(u64) {
     reserved0: u8 = 0,
     bsp: bool = false,
-    ign: false = 0,
+    ign: bool = false,
     extended: bool = false,
     global_enable: bool = false,
     address: u24,
