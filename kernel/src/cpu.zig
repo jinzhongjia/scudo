@@ -5,6 +5,8 @@ export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
 };
 
+export var smp_request: limine.SmpRequest = .{};
+
 pub inline fn hlt() noreturn {
     while (true) {
         asm volatile ("hlt");
@@ -322,4 +324,11 @@ pub const IA32_APIC_BASE = packed struct(u64) {
 /// Some VMs support nested virtualization, which would allow you to use KVM inside your VM
 pub fn x2APIC_available() bool {
     return CPUID.cpuid(1).ecx & 0x100000 != 0;
+}
+
+pub fn get_cpu_count() usize {
+    if (smp_request.response) |response| {
+        return @as(usize, response.cpu_count);
+    }
+    @panic("faild to get smp_request");
 }
