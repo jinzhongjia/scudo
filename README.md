@@ -2,7 +2,7 @@
 
 This is an experimental project!
 
-A x86-64 kernel written with zig
+A x86-64 kernel written with zig, the goal is to implement a kernel that supports a universal tunnel proxy protocol
 
 ## develop tools
 
