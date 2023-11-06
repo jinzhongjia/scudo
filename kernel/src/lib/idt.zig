@@ -520,11 +520,39 @@ const PIC = struct {
 };
 
 pub const APIC = struct {
+    var ia32_apic_base: cpu.IA32_APIC_BASE = undefined;
+
     pub fn init() void {
-        // TODO: more
+        // TODO: add x2apic support
+
+        ia32_apic_base = cpu.IA32_APIC_BASE.read();
+
+        // TODO: add register offset to enum
+
+        const svr = read_register(0xf0);
+        // enable SVR apic and disable SVR EOI bit
+        write_register(0xf0, (svr | 0x100) & ~@as(u32, 0x1000));
+
+        const lapic_id_register = read_register(0x20);
+        const lapic_version_register = read_register(0x30);
+        log.debug("lapic_id is 0x{x}, lapic_version is 0x{x}, Max LVT Entry: 0x{x}, SVR(Suppress EOI Broadcast): {}", .{
+            lapic_id_register,
+            lapic_version_register & 0xff,
+            (lapic_version_register >> 16 & 0xff) + 1,
+            lapic_version_register >> 24 & 0x1 == 1,
+        });
 
         // disable 8259A
         PIC.remap();
+    }
+
+    fn read_register(offset: u16) u32 {
+        return @as(*u32, @ptrFromInt(ia32_apic_base.getAddress() + offset)).*;
+    }
+
+    fn write_register(offset: u16, value: u32) void {
+        var ptr: *u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
+        ptr.* = value;
     }
 };
 

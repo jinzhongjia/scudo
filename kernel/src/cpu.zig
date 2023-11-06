@@ -5,7 +5,9 @@ export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
 };
 
-export var smp_request: limine.SmpRequest = .{};
+pub export var smp_request: limine.SmpRequest = .{
+    .flags = 1,
+};
 
 pub inline fn hlt() noreturn {
     while (true) {
