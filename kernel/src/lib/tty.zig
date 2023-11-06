@@ -169,7 +169,7 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
 
 pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
     @setCold(true);
-    make_color_printf(framebuffer.color.red).printf(format, args);
+    make_color_printf(framebuffer.color.red_red).printf(format, args);
     cpu.stopCPU();
 }
 
@@ -212,13 +212,13 @@ pub fn logf(comptime format: []const u8, args: anytype, level: std.log.Level) vo
             make_color_printf(framebuffer.color.cyan_blue).printf(format, args);
         },
         .warn => {
-            make_color_printf(framebuffer.color.yellow).printf(format, args);
+            make_color_printf(framebuffer.color.bright_yellow).printf(format, args);
         },
         .err => {
-            make_color_printf(framebuffer.color.red).printf(format, args);
+            make_color_printf(framebuffer.color.silver_vermilion).printf(format, args);
         },
         .debug => {
-            make_color_printf(framebuffer.color.green).printf(format, args);
+            make_color_printf(framebuffer.color.light_green).printf(format, args);
         },
     }
 }

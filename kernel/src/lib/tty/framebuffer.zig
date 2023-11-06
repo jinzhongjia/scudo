@@ -58,24 +58,16 @@ pub const Entry = packed struct {
 
 // 定义一些基本颜色
 pub const color = struct {
-    pub const black = Entry{};
-    pub const white = Entry{
-        .blue = 0xff,
-        .green = 0xff,
-        .red = 0xff,
-    };
-    pub const blue = Entry{
-        .blue = 0xff,
-    };
-    pub const green = Entry{
-        .green = 0xff,
-    };
-    pub const red = Entry{
-        .red = 0xff,
-    };
-    pub const yellow = Entry{
-        .green = 0xff,
-        .red = 0xff,
-    };
+    pub const black = Entry.make_from_hex(0x000000);
+    pub const white = Entry.make_from_hex(0xffffff);
+    pub const blue = Entry.make_from_hex(0x0000ff);
+    pub const green = Entry.make_from_hex(0x00ff00);
+    pub const red = Entry.make_from_hex(0xff0000);
+    pub const yellow = Entry.make_from_hex(0xffff00);
     pub const cyan_blue = Entry.make_from_hex(0x009ad6);
+    pub const cyan_green = Entry.make_from_hex(0x00ae9d);
+    pub const silver_vermilion = Entry.make_from_hex(0xaa363d);
+    pub const bright_yellow = Entry.make_from_hex(0xfcaf17);
+    pub const light_green = Entry.make_from_hex(0x1d953f);
+    pub const red_red = Entry.make_from_hex(0xd93a49);
 };
