@@ -228,8 +228,7 @@ pub inline fn stopCPU() noreturn {
 }
 
 pub inline fn check_apic() bool {
-    var res = CPUID.cpuid(1);
-    return res.edx & 0x100 != 0;
+    return CPUID.cpuid(1).edx & 0x100 != 0;
 }
 
 pub inline fn read_MSR(msr: u32) void {

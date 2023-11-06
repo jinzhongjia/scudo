@@ -18,7 +18,11 @@ pub fn init() void {
     idtr.base = @intFromPtr(&idt[0]);
 
     if (cpu.check_apic()) {
-        log.info("init apic", null);
+        if (cpu.x2APIC_available()) {
+            log.info("init x2apic", null);
+        } else {
+            log.info("init apic", null);
+        }
         APIC.init();
     } else {
         log.info("init 8259A_PIC", null);
