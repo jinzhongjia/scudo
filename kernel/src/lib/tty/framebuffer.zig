@@ -1,3 +1,4 @@
+const std = @import("std");
 const limine = @import("limine");
 
 export var framebuffer_request: limine.FramebufferRequest = .{};
@@ -34,7 +35,26 @@ pub fn init() void {
 }
 
 // frambebuffer的条目，每个像素点的内存结构
-pub const Entry = packed struct { blue: u8 = 0x00, green: u8 = 0x00, red: u8 = 0x00, reserved: u8 = 0x00 };
+pub const Entry = packed struct {
+    const This = @This();
+    blue: u8 = 0x00,
+    green: u8 = 0x00,
+    red: u8 = 0x00,
+    reserved: u8 = 0x00,
+    pub fn make_from_hex(comptime color_code: u64) This {
+        const max_color = 0xffffff;
+        const min_color = 0x000000;
+        if (color_code > max_color or color_code < min_color) {
+            @compileError(std.fmt.comptimePrint("color code is error!", .{color_code}));
+        }
+
+        return This{
+            .blue = @intCast(0x0000ff & color_code),
+            .green = @intCast(0x00ff & (color_code >> 8)),
+            .red = @intCast(color_code >> 16),
+        };
+    }
+};
 
 // 定义一些基本颜色
 pub const color = struct {
@@ -57,4 +77,5 @@ pub const color = struct {
         .green = 0xff,
         .red = 0xff,
     };
+    pub const cyan_blue = Entry.make_from_hex(0x009ad6);
 };

@@ -205,14 +205,26 @@ fn make_color_printf(comptime FRColor: framebuffer.Entry) type {
     };
 }
 
-pub fn logf(comptime format: []const u8, args: anytype) void {
+pub fn logf(comptime format: []const u8, args: anytype, level: std.log.Level) void {
     @setCold(true);
-    make_color_printf(framebuffer.color.yellow).printf(format, args);
+    switch (level) {
+        .info => {
+            make_color_printf(framebuffer.color.cyan_blue).printf(format, args);
+        },
+        .warn => {
+            make_color_printf(framebuffer.color.yellow).printf(format, args);
+        },
+        .err => {
+            make_color_printf(framebuffer.color.red).printf(format, args);
+        },
+        .debug => {
+            make_color_printf(framebuffer.color.green).printf(format, args);
+        },
+    }
 }
 
 /// for log implemention
 pub const std_options = struct {
-    pub const log_level = std.log.Level.debug;
     pub fn logFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
         const scope_prefix = "(" ++ switch (builtin.mode) {
             .Debug => @tagName(scope),
@@ -223,6 +235,6 @@ pub const std_options = struct {
         } ++ "): ";
 
         const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
-        logf(prefix ++ format ++ "\n", args);
+        logf(prefix ++ format ++ "\n", args, level);
     }
 };

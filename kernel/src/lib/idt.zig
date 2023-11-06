@@ -2,6 +2,7 @@
 // about exception error code https://wiki.osdev.org/Exceptions#Selector_Error_Code
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
+const log = @import("../lib.zig").log;
 
 pub const IRQ_ENUM = PIC.IRQ;
 pub const Mask_IRQ = PIC.mask_IRQ;
@@ -17,8 +18,10 @@ pub fn init() void {
     idtr.base = @intFromPtr(&idt[0]);
 
     if (cpu.check_apic()) {
+        log.info("init apic", null);
         APIC.init();
     } else {
+        log.info("init 8259A_PIC", null);
         PIC.init();
     }
 
