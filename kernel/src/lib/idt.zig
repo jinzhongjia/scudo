@@ -1,12 +1,15 @@
 // more:https://wiki.osdev.org/Interrupts_Tutorial
 // about exception error code https://wiki.osdev.org/Exceptions#Selector_Error_Code
 const tty = @import("tty.zig");
+const config = @import("config");
 const cpu = @import("../cpu.zig");
 const log = @import("../lib.zig").log;
 
 pub const IRQ_ENUM = PIC.IRQ;
 pub const Mask_IRQ = PIC.mask_IRQ;
 pub const Register_IRQ = PIC.registerIRQ;
+
+var is_apic: bool = undefined;
 
 pub fn init() void {
     // We set up the entire idt here to prevent unknown problems.
@@ -17,16 +20,20 @@ pub fn init() void {
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
-    if (cpu.check_apic()) {
+    install();
+    PIC.remap();
+
+    if (config.enable_APIC and cpu.check_apic()) {
         if (cpu.x2APIC_available()) {
-            log.info("init x2apic", null);
+            log.info("init x2APIC", null);
         } else {
-            log.info("init apic", null);
+            log.info("init APIC", null);
         }
+        is_apic = true;
         APIC.init();
     } else {
+        is_apic = false;
         log.info("init 8259A_PIC", null);
-        PIC.init();
     }
 
     // use lidt to load idtr
@@ -216,11 +223,13 @@ fn make_unhandled(comptime num: u8) fn () noreturn {
     }.handle;
 }
 
-pub fn register(n: u8, handler: *const fn () void) void {
+pub fn register_handle(n: u8, handler: *const fn () void) void {
     handlers[n] = handler;
 }
 
 export fn interruptDispatch() void {
+    // TODO: This function needs to be abstracted to support handling apic and 8259A_PIC
+
     const interrupt_num: u8 = @intCast(context.interrupt_num);
 
     switch (interrupt_num) {
@@ -229,6 +238,9 @@ export fn interruptDispatch() void {
         },
         // this logic should be refactored
         PIC.IRQ_0...PIC.IRQ_15 => {
+            if (is_apic) {
+                @panic("Currently, the io apic has not been perfected and cannot handle external interrupts.");
+            }
             const irq: u8 = interrupt_num - PIC.IRQ_0;
             // when handle isr, we maybe meet spurious IRQ
             // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
@@ -328,11 +340,6 @@ const PIC = struct {
         HARDDISK_2 = 15,
     };
 
-    fn init() void {
-        install();
-        remap();
-    }
-
     /// initialization for pic and remap the irqs
     /// you may confuse to this, for more, you can see this:https://wiki.osdev.org/PIC#Protected_Mode
     fn remap() void {
@@ -406,116 +413,9 @@ const PIC = struct {
     fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
         const irq_num = @intFromEnum(irq);
 
-        register(@intCast(IRQ_0 + irq_num), handle);
+        register_handle(@intCast(IRQ_0 + irq_num), handle);
 
         mask_IRQ(irq, false);
-    }
-    // Interrupt Service Routines defined externally in assembly.
-    extern fn isr0() void;
-    extern fn isr1() void;
-    extern fn isr2() void;
-    extern fn isr3() void;
-    extern fn isr4() void;
-    extern fn isr5() void;
-    extern fn isr6() void;
-    extern fn isr7() void;
-    extern fn isr8() void;
-    extern fn isr9() void;
-    extern fn isr10() void;
-    extern fn isr11() void;
-    extern fn isr12() void;
-    extern fn isr13() void;
-    extern fn isr14() void;
-    extern fn isr15() void;
-    extern fn isr16() void;
-    extern fn isr17() void;
-    extern fn isr18() void;
-    extern fn isr19() void;
-    extern fn isr20() void;
-    extern fn isr21() void;
-    extern fn isr22() void;
-    extern fn isr23() void;
-    extern fn isr24() void;
-    extern fn isr25() void;
-    extern fn isr26() void;
-    extern fn isr27() void;
-    extern fn isr28() void;
-    extern fn isr29() void;
-    extern fn isr30() void;
-    extern fn isr31() void;
-
-    // IRQs
-    extern fn isr32() void;
-    extern fn isr33() void;
-    extern fn isr34() void;
-    extern fn isr35() void;
-    extern fn isr36() void;
-    extern fn isr37() void;
-    extern fn isr38() void;
-    extern fn isr39() void;
-    extern fn isr40() void;
-    extern fn isr41() void;
-    extern fn isr42() void;
-    extern fn isr43() void;
-    extern fn isr44() void;
-    extern fn isr45() void;
-    extern fn isr46() void;
-    extern fn isr47() void;
-    // syscall
-    extern fn isr128() void;
-
-    fn install() void {
-        idt_set_descriptor(0, isr0, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(1, isr1, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(2, isr2, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(3, isr3, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(4, isr4, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(5, isr5, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(6, isr6, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(7, isr7, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(8, isr8, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(9, isr9, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(10, isr10, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(11, isr11, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(12, isr12, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(13, isr13, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(14, isr14, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(15, isr15, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(16, isr16, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(17, isr17, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(18, isr18, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(19, isr19, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(20, isr20, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(21, isr21, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(22, isr22, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(23, isr23, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(24, isr24, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(25, isr25, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(26, isr26, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(27, isr27, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(28, isr28, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(29, isr29, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(30, isr30, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(31, isr31, @intFromEnum(FLAGS.interrupt_gate));
-        // IRQs
-        idt_set_descriptor(32, isr32, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(33, isr33, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(34, isr34, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(35, isr35, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(36, isr36, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(37, isr37, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(38, isr38, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(39, isr39, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(40, isr40, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(41, isr41, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(42, isr42, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(43, isr43, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(44, isr44, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(45, isr45, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(46, isr46, @intFromEnum(FLAGS.interrupt_gate));
-        idt_set_descriptor(47, isr47, @intFromEnum(FLAGS.interrupt_gate));
-        // syscall
-        idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
     }
 };
 
@@ -544,9 +444,6 @@ pub const APIC = struct {
             max_lvt_len,
             lapic_version_register >> 24 & 0x1 == 1,
         });
-
-        // disable 8259A
-        PIC.remap();
     }
 
     const Register = enum(u16) {
@@ -729,4 +626,111 @@ comptime {
         // syscall
         \\ isrGenerate 128
     );
+}
+// Interrupt Service Routines defined externally in assembly.
+extern fn isr0() void;
+extern fn isr1() void;
+extern fn isr2() void;
+extern fn isr3() void;
+extern fn isr4() void;
+extern fn isr5() void;
+extern fn isr6() void;
+extern fn isr7() void;
+extern fn isr8() void;
+extern fn isr9() void;
+extern fn isr10() void;
+extern fn isr11() void;
+extern fn isr12() void;
+extern fn isr13() void;
+extern fn isr14() void;
+extern fn isr15() void;
+extern fn isr16() void;
+extern fn isr17() void;
+extern fn isr18() void;
+extern fn isr19() void;
+extern fn isr20() void;
+extern fn isr21() void;
+extern fn isr22() void;
+extern fn isr23() void;
+extern fn isr24() void;
+extern fn isr25() void;
+extern fn isr26() void;
+extern fn isr27() void;
+extern fn isr28() void;
+extern fn isr29() void;
+extern fn isr30() void;
+extern fn isr31() void;
+
+// IRQs
+extern fn isr32() void;
+extern fn isr33() void;
+extern fn isr34() void;
+extern fn isr35() void;
+extern fn isr36() void;
+extern fn isr37() void;
+extern fn isr38() void;
+extern fn isr39() void;
+extern fn isr40() void;
+extern fn isr41() void;
+extern fn isr42() void;
+extern fn isr43() void;
+extern fn isr44() void;
+extern fn isr45() void;
+extern fn isr46() void;
+extern fn isr47() void;
+// syscall
+extern fn isr128() void;
+
+fn install() void {
+    idt_set_descriptor(0, isr0, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(1, isr1, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(2, isr2, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(3, isr3, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(4, isr4, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(5, isr5, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(6, isr6, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(7, isr7, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(8, isr8, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(9, isr9, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(10, isr10, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(11, isr11, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(12, isr12, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(13, isr13, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(14, isr14, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(15, isr15, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(16, isr16, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(17, isr17, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(18, isr18, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(19, isr19, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(20, isr20, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(21, isr21, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(22, isr22, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(23, isr23, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(24, isr24, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(25, isr25, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(26, isr26, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(27, isr27, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(28, isr28, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(29, isr29, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(30, isr30, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(31, isr31, @intFromEnum(FLAGS.interrupt_gate));
+    // IRQs
+    idt_set_descriptor(32, isr32, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(33, isr33, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(34, isr34, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(35, isr35, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(36, isr36, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(37, isr37, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(38, isr38, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(39, isr39, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(40, isr40, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(41, isr41, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(42, isr42, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(43, isr43, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(44, isr44, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(45, isr45, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(46, isr46, @intFromEnum(FLAGS.interrupt_gate));
+    idt_set_descriptor(47, isr47, @intFromEnum(FLAGS.interrupt_gate));
+    // syscall
+    idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
 }

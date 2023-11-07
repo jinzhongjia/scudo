@@ -8,6 +8,8 @@ pub const PIT_FREQUENCY = 100;
 /// but we need to add handle function for it
 pub const enable_PC_SPEAKER: bool = true;
 
+pub const enable_APIC: bool = true;
+
 pub const mem = struct {
     pub const is_print_mem_info: bool = false;
 
