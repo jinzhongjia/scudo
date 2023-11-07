@@ -421,7 +421,11 @@ const PIC = struct {
 
 pub const APIC = struct {
     var ia32_apic_base: cpu.IA32_APIC_BASE = undefined;
+
     var max_lvt_len: u8 = 0;
+    var version: APIC_VERSION = undefined;
+
+    var eoi_can_set: bool = undefined;
 
     pub fn init() void {
         // TODO: add x2apic support
@@ -437,14 +441,33 @@ pub const APIC = struct {
         const lapic_id_register = Register.read_register(Register.lapic_id);
         const lapic_version_register = Register.read_register(Register.lapic_version);
 
+        version = APIC_VERSION.make(lapic_version_register);
         max_lvt_len = @intCast((lapic_version_register >> 16 & 0xff) + 1);
-        log.debug("lapic_id is 0x{x}, lapic_version is 0x{x}, Max LVT Entry: 0x{x}, SVR(Suppress EOI Broadcast): {}", .{
+        eoi_can_set = lapic_version_register >> 24 & 0x1 == 1;
+
+        log.debug("lapic_id is 0x{x}, lapic_version is {s}, Max LVT Entry: 0x{x}, SVR(Suppress EOI Broadcast): {}", .{
             lapic_id_register,
-            lapic_version_register & 0xff,
+            @tagName(version),
             max_lvt_len,
-            lapic_version_register >> 24 & 0x1 == 1,
+            eoi_can_set,
         });
     }
+
+    const APIC_VERSION = enum {
+        apic_82489DX,
+        apic_integrated,
+
+        fn make(value: u32) APIC_VERSION {
+            var tmp = value & 0xff;
+            if (tmp < 0x10) {
+                return APIC_VERSION.apic_82489DX;
+            } else if (0x10 <= tmp and tmp <= 0x15) {
+                return APIC_VERSION.apic_integrated;
+            }
+
+            @panic("can't identify the apic version");
+        }
+    };
 
     const Register = enum(u16) {
         lapic_id = 0x020,
