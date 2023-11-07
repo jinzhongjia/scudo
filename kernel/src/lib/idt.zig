@@ -521,6 +521,7 @@ const PIC = struct {
 
 pub const APIC = struct {
     var ia32_apic_base: cpu.IA32_APIC_BASE = undefined;
+    var max_lvt_len: u8 = 0;
 
     pub fn init() void {
         // TODO: add x2apic support
@@ -529,16 +530,18 @@ pub const APIC = struct {
 
         // TODO: add register offset to enum
 
-        const svr = read_register(0xf0);
+        const svr = Register.read_register(Register.SVR);
         // enable SVR apic and disable SVR EOI bit
-        write_register(0xf0, (svr | 0x100) & ~@as(u32, 0x1000));
+        Register.write_register(Register.SVR, (svr | 0x100) & ~@as(u32, 0x1000));
 
-        const lapic_id_register = read_register(0x20);
-        const lapic_version_register = read_register(0x30);
+        const lapic_id_register = Register.read_register(Register.lapic_id);
+        const lapic_version_register = Register.read_register(Register.lapic_version);
+
+        max_lvt_len = @intCast((lapic_version_register >> 16 & 0xff) + 1);
         log.debug("lapic_id is 0x{x}, lapic_version is 0x{x}, Max LVT Entry: 0x{x}, SVR(Suppress EOI Broadcast): {}", .{
             lapic_id_register,
             lapic_version_register & 0xff,
-            (lapic_version_register >> 16 & 0xff) + 1,
+            max_lvt_len,
             lapic_version_register >> 24 & 0x1 == 1,
         });
 
@@ -546,14 +549,72 @@ pub const APIC = struct {
         PIC.remap();
     }
 
-    fn read_register(offset: u16) u32 {
-        return @as(*u32, @ptrFromInt(ia32_apic_base.getAddress() + offset)).*;
-    }
+    const Register = enum(u16) {
+        lapic_id = 0x020,
+        lapic_version = 0x030,
+        TPR = 0x080,
+        APR = 0x090,
+        PPR = 0x0A0,
+        EOI = 0x0B0,
+        RRD = 0x0C0,
+        LDR = 0x0D0,
+        DFR = 0x0E0,
+        SVR = 0x0F0,
 
-    fn write_register(offset: u16, value: u32) void {
-        var ptr: *u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
-        ptr.* = value;
-    }
+        ISR_0 = 0x100,
+        ISR_1 = 0x110,
+        ISR_2 = 0x120,
+        ISR_3 = 0x130,
+        ISR_4 = 0x140,
+        ISR_5 = 0x150,
+        ISR_6 = 0x160,
+        ISR_7 = 0x170,
+
+        TMR_0 = 0x180,
+        TMR_1 = 0x190,
+        TMR_2 = 0x1A0,
+        TMR_3 = 0x1B0,
+        TMR_4 = 0x1C0,
+        TMR_5 = 0x1D0,
+        TMR_6 = 0x1E0,
+        TMR_7 = 0x1F0,
+
+        IRR_0 = 0x200,
+        IRR_1 = 0x210,
+        IRR_2 = 0x220,
+        IRR_3 = 0x230,
+        IRR_4 = 0x240,
+        IRR_5 = 0x250,
+        IRR_6 = 0x260,
+        IRR_7 = 0x270,
+
+        ESR = 0x280,
+        CMCI = 0x2F0,
+
+        ICR_0 = 0x300,
+        ICR_1 = 0x310,
+
+        lvt_timer = 0x320,
+        lvt_thermal_sensor = 0x330,
+        lvt_performance_monitoring_counters = 0x340,
+        lvt_LINT0 = 0x350,
+        lvt_LINT1 = 0x360,
+        lvt_error = 0x370,
+
+        initial_count = 0x380,
+        current_count = 0x390,
+        divide_config = 0x3E0,
+        fn read_register(apic_register: Register) u32 {
+            const offset: u16 = @intFromEnum(apic_register);
+            return @as(*u32, @ptrFromInt(ia32_apic_base.getAddress() + offset)).*;
+        }
+
+        fn write_register(apic_register: Register, value: u32) void {
+            const offset: u16 = @intFromEnum(apic_register);
+            var ptr: *u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
+            ptr.* = value;
+        }
+    };
 };
 
 comptime {
