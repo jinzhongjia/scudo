@@ -1,5 +1,6 @@
 // more:https://wiki.osdev.org/Interrupts_Tutorial
 // about exception error code https://wiki.osdev.org/Exceptions#Selector_Error_Code
+const std = @import("std");
 const tty = @import("tty.zig");
 const config = @import("config");
 const cpu = @import("../cpu.zig");
@@ -428,6 +429,13 @@ pub const APIC = struct {
     var eoi_can_set: bool = undefined;
 
     pub fn init() void {
+        // about setting up apic
+        // wen can refer this article, https://blog.wesleyac.com/posts/ioapic-interrupts#fnref1
+        local_apic_init();
+        io_apic_init();
+    }
+
+    fn local_apic_init() void {
         // TODO: add x2apic support
 
         ia32_apic_base = cpu.IA32_APIC_BASE.read();
@@ -451,6 +459,61 @@ pub const APIC = struct {
             max_lvt_len,
             eoi_can_set,
         });
+    }
+
+    fn io_apic_init() void {
+        parse_RSDP();
+    }
+
+    const RSDP = packed struct {
+        // always present
+        Signature: u64,
+        checksum: u8,
+        OEM_id: u48,
+        revision: u8,
+        rsdt_phyaddr: u32,
+
+        // for v2
+        length: u32,
+        xsdt_phyaddr: u32,
+        extended_checksum: u8,
+        reserved: u24,
+    };
+
+    fn parse_RSDP() void {
+        var rsdp_ptr: *RSDP = undefined;
+        if (cpu.rsdp_request.response) |response| {
+            rsdp_ptr = @ptrCast(@alignCast(response.address));
+        } else {
+            @panic("sorry, getting rsdp response failed");
+        }
+
+        var oem_id: []u8 = undefined;
+        // check sum
+        {
+            var rsdp_arr_bit_ptr: *[20]u8 = @ptrCast(rsdp_ptr);
+            var sum: u8 = 0;
+
+            for (rsdp_arr_bit_ptr) |byte| {
+                sum +%= byte;
+            }
+            if (sum != 0) {
+                log.err("{}", sum);
+                @panic("sorry, checksum failed");
+            }
+
+            oem_id = rsdp_arr_bit_ptr[9..15];
+        }
+
+        log.debug("{s}", oem_id);
+
+        if (rsdp_ptr.revision == 2) {
+            // TODO: add rsdp v2 handle
+            // like xsdt
+            @panic("now not support RSDP V2");
+        } else if (rsdp_ptr.revision != 0) {
+            tty.panicf("rsdp revision is unexpected: {}", rsdp_ptr.revision);
+        }
     }
 
     const APIC_VERSION = enum {

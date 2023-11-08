@@ -114,7 +114,6 @@ pub fn scrollDown() void {
 
 /// 清屏，该处理方案并不好
 /// 后续考虑其他方案实现
-/// TODO: this function is abnormal
 pub fn clear() void {
     const address = framebuffer.address;
     const num = framebuffer.width * framebuffer.height * framebuffer.pixelwidth;

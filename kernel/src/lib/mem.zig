@@ -20,8 +20,6 @@ pub fn init() void {
 }
 
 pub const P_MEM = struct {
-    // NOTE: this module should be rewrite!!!
-
     /// this is entries for memory map
     var memmap_entries: []*limine.MemoryMapEntry = undefined;
 
@@ -196,7 +194,6 @@ pub const V_MEM = struct {
 
         // attempt to clear low half virtual address
         {
-            // TODO: here is error
             // @memset(@as([*]u8, @ptrCast(PML4))[0 .. 256 * @sizeOf(PageMapLevel4Entry)], 0);
             @memset(PML4[0..256], PageMapLevel4Entry{});
             // @compileLog(@sizeOf(PageMapLevel4Entry));
