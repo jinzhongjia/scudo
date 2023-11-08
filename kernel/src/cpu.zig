@@ -5,6 +5,8 @@ export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
 };
 
+pub export var rsdp_request: limine.RsdpRequest = .{};
+
 pub export var smp_request: limine.SmpRequest = .{
     .flags = 1,
 };
