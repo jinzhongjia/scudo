@@ -465,56 +465,123 @@ pub const APIC = struct {
         parse_RSDP();
     }
 
-    const RSDP = packed struct {
-        // always present
-        Signature: u64,
-        checksum: u8,
-        OEM_id: u48,
-        revision: u8,
-        rsdt_phyaddr: u32,
+    // const RSDP = packed struct {
+    //     // always present
+    //     Signature: u64,
+    //     checksum: u8,
+    //     OEM_id: u48,
+    //     revision: u8,
+    //     rsdt_phyaddr: u32,
+    //
+    //     // for v2
+    //     length: u32,
+    //     xsdt_phyaddr: u32,
+    //     extended_checksum: u8,
+    //     reserved: u24,
+    // };
+    const RSDP = struct {
+        addr: usize,
 
-        // for v2
-        length: u32,
-        xsdt_phyaddr: u32,
-        extended_checksum: u8,
-        reserved: u24,
+        const REVISION = enum {
+            v1,
+            v2,
+        };
+
+        fn init(paddr: usize) RSDP {
+            return .{
+                .addr = paddr,
+            };
+        }
+
+        fn OEM_id(self: RSDP) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[9..15];
+        }
+
+        fn get_revision(self: RSDP) ?REVISION {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            var tmp_revision = tmp_ptr[15];
+            if (tmp_revision == 0) {
+                return REVISION.v1;
+            }
+
+            if (tmp_revision == 2) {
+                return REVISION.v2;
+            }
+
+            return null;
+        }
+
+        fn checksum(self: RSDP) void {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+
+            var sum: u8 = 0;
+
+            if (tmp_ptr[15] == 0) {
+                for (tmp_ptr[0..20]) |byte| {
+                    sum +%= byte;
+                }
+            } else if (tmp_ptr[15] == 2) {
+                for (tmp_ptr[0..36]) |byte| {
+                    sum +%= byte;
+                }
+            }
+
+            if (sum != 0) {
+                tty.panicf("sorry, checksum v2 part failed, sum is {}", sum);
+            }
+        }
+
+        fn rsdt_addr(self: RSDP) usize {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 16);
+            return @intCast(tmp_ptr.*);
+        }
+
+        fn xsdt_addr(self: RSDP) usize {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 24);
+            return @intCast(tmp_ptr.*);
+        }
     };
 
     fn parse_RSDP() void {
-        var rsdp_ptr: *RSDP = undefined;
+        var rsdp: RSDP = undefined;
+
         if (cpu.rsdp_request.response) |response| {
-            rsdp_ptr = @ptrCast(@alignCast(response.address));
+            rsdp = RSDP.init(@intFromPtr(response.address));
         } else {
             @panic("sorry, getting rsdp response failed");
         }
 
-        var oem_id: []u8 = undefined;
-        // check sum
-        {
-            var rsdp_arr_bit_ptr: *[20]u8 = @ptrCast(rsdp_ptr);
-            var sum: u8 = 0;
+        log.debug("{s}", rsdp.OEM_id());
 
-            for (rsdp_arr_bit_ptr) |byte| {
-                sum +%= byte;
+        if (rsdp.get_revision()) |revision| {
+            switch (revision) {
+                .v1 => {
+                    // const rsdt_addr = rsdp.rsdt_addr();
+                    // const ptr: [*]u8 = @ptrFromInt(rsdt_addr + 10);
+                    // log.debug("content is {s}", ptr[0..6]);
+                },
+                .v2 => {
+                    // TODO: add rsdp v2 handle
+                    @panic("now not support RSDP V2");
+                },
             }
-            if (sum != 0) {
-                log.err("{}", sum);
-                @panic("sorry, checksum failed");
-            }
-
-            oem_id = rsdp_arr_bit_ptr[9..15];
-        }
-
-        log.debug("{s}", oem_id);
-
-        if (rsdp_ptr.revision == 2) {
-            // TODO: add rsdp v2 handle
-            // like xsdt
-            @panic("now not support RSDP V2");
-        } else if (rsdp_ptr.revision != 0) {
-            tty.panicf("rsdp revision is unexpected: {}", rsdp_ptr.revision);
+        } else {
+            tty.panicf("rsdp revision is unexpected", null);
         }
     }
+
+    // const ACPI_SDT_header = packed struct {
+    //     signature: u32,
+    //     length: u32,
+    //     revision: u8,
+    //     checksum: u8,
+    //     OEM_id: u48,
+    //     OEM_table_id: u64,
+    //     OEM_revision: u32,
+    //     creator_id: u32,
+    //     creator_revision: u32,
+    // };
 
     const APIC_VERSION = enum {
         apic_82489DX,
