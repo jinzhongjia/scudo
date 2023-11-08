@@ -493,6 +493,11 @@ pub const APIC = struct {
             };
         }
 
+        fn signature(self: RSDP) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[0..8];
+        }
+
         fn OEM_id(self: RSDP) []u8 {
             var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
             return tmp_ptr[9..15];
@@ -535,6 +540,16 @@ pub const APIC = struct {
         fn rsdt_addr(self: RSDP) usize {
             var tmp_ptr: *u32 = @ptrFromInt(self.addr + 16);
             return @intCast(tmp_ptr.*);
+        }
+
+        fn length(self: RSDP) u32 {
+            if (self.get_revision()) |revision| {
+                if (revision == .v2) {
+                    var tmp_ptr: *u32 = @ptrFromInt(self.addr + 20);
+                    return tmp_ptr.*;
+                }
+            }
+            @panic("sorry, rsdp is v1, can't get length");
         }
 
         fn xsdt_addr(self: RSDP) usize {
