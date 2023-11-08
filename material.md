@@ -1,0 +1,1 @@
+- [How to set up the APIC to get keyboard interrupts](https://blog.wesleyac.com/posts/ioapic-interrupts#fnref1)
