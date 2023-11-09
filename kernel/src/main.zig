@@ -12,10 +12,11 @@ pub fn main() noreturn {
     // test unit for kernel
     kernel_test();
 
-    @panic(
+    lib.log.err(
         \\Note:This is an experimental project!
         \\Now kernel is hang!
-    );
+    , null);
+    cpu.hlt();
 }
 
 inline fn module_init() void {
