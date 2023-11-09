@@ -8,9 +8,16 @@ const log = @import("../lib.zig").log;
 
 pub const IRQ_ENUM = PIC.IRQ;
 pub const Mask_IRQ = PIC.mask_IRQ;
-pub const Register_IRQ = PIC.registerIRQ;
 
 var is_apic: bool = undefined;
+
+pub fn Register_IRQ(irq: PIC.IRQ, handle: *const fn () void) void {
+    if (is_apic) {
+        APIC.registerIRQ(irq, handle);
+    } else {
+        PIC.registerIRQ(irq, handle);
+    }
+}
 
 pub fn init() void {
     // We set up the entire idt here to prevent unknown problems.
@@ -233,6 +240,8 @@ export fn interruptDispatch() void {
 
     const interrupt_num: u8 = @intCast(context.interrupt_num);
 
+    tty.println("a interrupt come, is {}", interrupt_num);
+
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
             handlers[interrupt_num]();
@@ -240,22 +249,28 @@ export fn interruptDispatch() void {
         // this logic should be refactored
         PIC.IRQ_0...PIC.IRQ_15 => {
             if (is_apic) {
-                @panic("Currently, the io apic has not been perfected and cannot handle external interrupts.");
+                if (interrupt_num != 110) {
+                    handlers[interrupt_num]();
+                    APIC.EOI();
+                }
+            } else {
+                const irq: u8 = interrupt_num - PIC.IRQ_0;
+                // when handle isr, we maybe meet spurious IRQ
+                // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
+                const spurious = PIC.spurious_IRQ(irq);
+                if (!spurious) {
+                    handlers[interrupt_num]();
+                }
+                PIC.EOI(interrupt_num, spurious);
             }
-            const irq: u8 = interrupt_num - PIC.IRQ_0;
-            // when handle isr, we maybe meet spurious IRQ
-            // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
-            const spurious = PIC.spurious_IRQ(irq);
-            if (!spurious) {
-                handlers[interrupt_num]();
-            }
-            PIC.EOI(interrupt_num, spurious);
         },
         SYSCALL => {
             tty.println("yes, we meet a syscall", null);
         },
         // Theoretically, it would not happen to reach this point.
-        else => unreachable,
+        else => {
+            tty.panicf("unexpected interrupt num is 0x{x}", interrupt_num);
+        },
     }
 }
 
@@ -438,14 +453,47 @@ pub const APIC = struct {
         io_apic_init();
     }
 
+    fn registerIRQ(irq: PIC.IRQ, handle: *const fn () void) void {
+        const irq_num = @intFromEnum(irq);
+
+        register_handle(@intCast(PIC.IRQ_0 + irq_num), handle);
+
+        mask_IRQ(irq_num, false);
+    }
+
+    fn EOI() void {
+        Register.write_register(Register.EOI, 0);
+    }
+
+    fn mask_IRQ(irq: u8, mask: bool) void {
+        for (override_list) |value| {
+            if (value.irq_source == irq) {
+                mask_gsi(value.gsi, mask);
+                return;
+            }
+        }
+    }
+
+    fn mask_gsi(gsi: u32, mask: bool) void {
+        var val = ioapic_redtbl_read(gsi);
+        if (mask) {
+            val |= 1 << 16;
+        } else {
+            val &= ~@as(u64, 1 << 16);
+        }
+        ioapic_redtbl_write(gsi, val);
+    }
+
     fn local_apic_init() void {
         // TODO: add x2apic support
 
         ia32_apic_base = cpu.IA32_APIC_BASE.read();
 
         // hardware enable apic, by set bit11 of IA32_APIC_BASE
-        ia32_apic_base.global_enable = true;
-        ia32_apic_base.write();
+        if (!ia32_apic_base.global_enable) {
+            ia32_apic_base.global_enable = true;
+            ia32_apic_base.write();
+        }
 
         const lapic_version_register = Register.read_register(Register.lapic_version);
         // const lapic_id_register = Register.read_register(Register.lapic_id);
@@ -460,15 +508,17 @@ pub const APIC = struct {
         max_lvt_len = @intCast((lapic_version_register >> 16 & 0xff) + 1);
         eoi_can_set = lapic_version_register >> 24 & 0x1 == 1;
 
-        Register.write_register(.TPR, 0x4 << 4);
+        // Register.write_register(.TPR, 0x4 << 4);
 
         // software enable APIC
         const svr = Register.read_register(Register.SVR);
         // enable SVR apic and disable SVR EOI bit
-        Register.write_register(Register.SVR, (svr | 0x100) & ~@as(u32, 0x1000));
+        Register.write_register(Register.SVR, (((svr & ~@as(u32, 0xff)) | 110) | 0x100) & ~@as(u32, 0x1000));
 
+        idt_set_descriptor(110, isr110, @intFromEnum(FLAGS.interrupt_gate));
         // TODO: set TPR register
     }
+
     var ioAPIC_ver: u32 = undefined;
     fn io_apic_init() void {
         ioAPIC_ver = read_ioapic_register(0x1);
@@ -679,24 +729,31 @@ pub const APIC = struct {
         TBL0_1 = 0x11,
     };
 
-    fn write_ioapic_register(offset: u8, val: u32) void {
+    fn write_ioapic_register(offset: u32, val: u32) void {
         var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
         IOREGSEL.* = offset;
         var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
         IOREGWIN.* = val;
     }
 
-    fn read_ioapic_register(offset: u8) u32 {
+    fn read_ioapic_register(offset: u32) u32 {
         var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
         IOREGSEL.* = offset;
         var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
         return IOREGWIN.*;
     }
 
-    fn ioapic_redtbl_write(gsi: u8, val: u64) void {
-        var ioredtbl: u8 = gsi * 2 + 0x10;
+    fn ioapic_redtbl_write(gsi: u32, val: u64) void {
+        var ioredtbl = gsi * 2 + 0x10;
         write_ioapic_register(ioredtbl, @truncate(val));
         write_ioapic_register(ioredtbl + 1, @truncate(val >> 32));
+    }
+
+    fn ioapic_redtbl_read(gsi: u32) u64 {
+        var ioredtbl = gsi * 2 + 0x10;
+        const low = read_ioapic_register(ioredtbl);
+        const high: u64 = read_ioapic_register(ioredtbl + 1);
+        return (high << 32) + low;
     }
 
     fn ioapic_redirect(gsi: u32, flags: u16, irq: ?u8) void {
@@ -711,8 +768,10 @@ pub const APIC = struct {
         if (flags & 8 != 0)
             redirection |= (1 << 15);
 
+        redirection |= (1 << 16);
+
         // current apic target is 0
-        ioapic_redtbl_write(@truncate(gsi), redirection);
+        ioapic_redtbl_write(gsi, redirection);
     }
 
     const RSDT = struct {
@@ -952,7 +1011,7 @@ pub const APIC = struct {
 
         fn write_register(apic_register: Register, value: u32) void {
             const offset: u16 = @intFromEnum(apic_register);
-            var ptr: *u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
+            var ptr: *volatile u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
             ptr.* = value;
         }
     };
@@ -1067,6 +1126,8 @@ comptime {
         \\ isrGenerate 45
         \\ isrGenerate 46
         \\ isrGenerate 47
+        // suprious interrupt
+        \\ isrGenerate 110
         // syscall
         \\ isrGenerate 128
     );
@@ -1123,6 +1184,7 @@ extern fn isr45() void;
 extern fn isr46() void;
 extern fn isr47() void;
 // syscall
+extern fn isr110() void;
 extern fn isr128() void;
 
 fn install() void {
