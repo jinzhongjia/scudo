@@ -1,8 +1,14 @@
 const limine = @import("limine");
-const config = @import("lib.zig").config;
+const config = @import("config");
 
 export var stack_size_request: limine.StackSizeRequest = .{
     .stack_size = config.stack_size,
+};
+
+pub export var rsdp_request: limine.RsdpRequest = .{};
+
+pub export var smp_request: limine.SmpRequest = .{
+    .flags = 1,
 };
 
 pub inline fn hlt() noreturn {
@@ -72,7 +78,8 @@ pub inline fn rbp() usize {
     );
 }
 
-const CPUID = extern struct {
+// before use this, we need to call check function
+pub const CPUID = extern struct {
     eax: u32,
     ebx: u32,
     edx: u32,
@@ -94,7 +101,7 @@ const CPUID = extern struct {
         var ecx: u32 = undefined;
 
         asm volatile (
-            \\cpuid
+            \\ cpuid
             : [eax] "={eax}" (eax),
               [ebx] "={ebx}" (ebx),
               [edx] "={edx}" (edx),
@@ -108,6 +115,25 @@ const CPUID = extern struct {
             .edx = edx,
             .ecx = ecx,
         };
+    }
+
+    pub inline fn check_available() bool {
+        var res: usize = asm volatile (
+            \\ pushfq
+            \\ pushfq
+            \\ xorq $0x200000, (%%rsp)
+            \\ popfq
+            \\ pushfq
+            \\ pop %%rax
+            \\ xorq (%%rsp), %%rax
+            \\ popfq
+            \\ andq $0x200000, %%rax
+            \\ mov %%rax, %[result]
+            : [result] "=r" (-> usize),
+            :
+            : "memory", "rsp"
+        );
+        return res != 0;
     }
 };
 
@@ -205,7 +231,107 @@ pub inline fn stopCPU() noreturn {
     }
 }
 
-pub inline fn has_apic() bool {
-    var res = CPUID.cpuid(1);
-    return res.edx & 0x100 != 0;
+pub inline fn check_apic() bool {
+    return CPUID.cpuid(1).edx & 0x100 != 0;
+}
+
+pub inline fn read_MSR(msr: u32) void {
+    var low: u32 = undefined;
+    var high: u32 = undefined;
+
+    asm volatile ("rdmsr"
+        : [_] "={eax}" (low),
+          [_] "={edx}" (high),
+        : [_] "{ecx}" (msr),
+    );
+    return (@as(u64, high) << 32) | low;
+}
+
+pub inline fn write_MSR(msr: u32, value: u64) void {
+    const low = @as(u32, @truncate(value));
+    const high = @as(u32, @truncate(value >> 32));
+
+    asm volatile ("wrmsr"
+        :
+        : [_] "{eax}" (low),
+          [_] "{edx}" (high),
+          [_] "{ecx}" (msr),
+    );
+}
+
+pub const MSR = struct {
+    pub fn is_avaiable() bool {
+        var res = CPUID.cpuid(1);
+        return res.edx & 0x10 != 0;
+    }
+
+    pub fn init(comptime msr: u32) type {
+        return struct {
+            pub inline fn read() u64 {
+                var low: u32 = undefined;
+                var high: u32 = undefined;
+
+                asm volatile ("rdmsr"
+                    : [_] "={eax}" (low),
+                      [_] "={edx}" (high),
+                    : [_] "{ecx}" (msr),
+                );
+                return (@as(u64, high) << 32) | low;
+            }
+
+            pub inline fn write(value: u64) void {
+                const low = @as(u32, @truncate(value));
+                const high = @as(u32, @truncate(value >> 32));
+
+                asm volatile ("wrmsr"
+                    :
+                    : [_] "{eax}" (low),
+                      [_] "{edx}" (high),
+                      [_] "{ecx}" (msr),
+                );
+            }
+        };
+    }
+};
+
+pub const IA32_APIC_BASE = packed struct(u64) {
+    reserved0: u8 = 0,
+    bsp: bool = false,
+    ign: bool = false,
+    extended: bool = false,
+    global_enable: bool = false,
+    address: u24,
+    reserved2: u28 = 0,
+
+    pub const msr = MSR.init(0x0000001B);
+
+    pub inline fn read() IA32_APIC_BASE {
+        const result = msr.read();
+        const typed_result = @as(IA32_APIC_BASE, @bitCast(result));
+        return typed_result;
+    }
+
+    pub inline fn write(typed_value: IA32_APIC_BASE) void {
+        const value = @as(u64, @bitCast(typed_value));
+        msr.write(value);
+    }
+
+    pub inline fn getAddress(ia32_apic_base: IA32_APIC_BASE) usize {
+        return @as(usize, ia32_apic_base.address) << @bitOffsetOf(IA32_APIC_BASE, "address");
+    }
+};
+
+/// Unfortunately, QEMU does not emulate x2apic.
+/// You have to use KVM (or a different emulator).
+/// You might not need to switch to a physical machine.
+/// Some VMs support nested virtualization, which would allow you to use KVM inside your VM
+pub fn x2APIC_available() bool {
+    return CPUID.cpuid(1).ecx & 0x100000 != 0;
+}
+
+pub fn get_cpu_count() usize {
+    if (smp_request.response) |response| {
+        return @as(usize, response.cpu_count);
+    }
+    @panic("faild to get smp_request");
 }

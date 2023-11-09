@@ -1,11 +1,23 @@
 // more:https://wiki.osdev.org/Interrupts_Tutorial
 // about exception error code https://wiki.osdev.org/Exceptions#Selector_Error_Code
+const std = @import("std");
 const tty = @import("tty.zig");
+const config = @import("config");
 const cpu = @import("../cpu.zig");
+const log = @import("../lib.zig").log;
 
 pub const IRQ_ENUM = PIC.IRQ;
 pub const Mask_IRQ = PIC.mask_IRQ;
-pub const Register_IRQ = PIC.registerIRQ;
+
+var is_apic: bool = undefined;
+
+pub fn Register_IRQ(irq: PIC.IRQ, handle: *const fn () void) void {
+    if (is_apic) {
+        APIC.registerIRQ(irq, handle);
+    } else {
+        PIC.registerIRQ(irq, handle);
+    }
+}
 
 pub fn init() void {
     // We set up the entire idt here to prevent unknown problems.
@@ -16,10 +28,21 @@ pub fn init() void {
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
+    install();
     PIC.remap();
 
-    // this function will install all custom interrupt handle function
-    // install();
+    if (config.enable_APIC and cpu.check_apic()) {
+        if (cpu.x2APIC_available()) {
+            log.info("init x2APIC", null);
+        } else {
+            log.info("init APIC", null);
+        }
+        is_apic = true;
+        APIC.init();
+    } else {
+        is_apic = false;
+        log.info("init 8259A_PIC", null);
+    }
 
     // use lidt to load idtr
     cpu.lidt(@intFromPtr(&idtr));
@@ -163,6 +186,7 @@ var handlers: [48]*const fn () void = init: {
     break :init initial_value;
 };
 
+// TODO: I think this function should be refactored
 fn make_unhandled(comptime num: u8) fn () noreturn {
     return struct {
         fn handle() noreturn {
@@ -207,32 +231,46 @@ fn make_unhandled(comptime num: u8) fn () noreturn {
     }.handle;
 }
 
-pub fn register(n: u8, handler: *const fn () void) void {
+pub fn register_handle(n: u8, handler: *const fn () void) void {
     handlers[n] = handler;
 }
 
 export fn interruptDispatch() void {
+    // TODO: This function needs to be abstracted to support handling apic and 8259A_PIC
+
     const interrupt_num: u8 = @intCast(context.interrupt_num);
+
+    tty.println("a interrupt come, is {}", interrupt_num);
 
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
             handlers[interrupt_num]();
         },
+        // this logic should be refactored
         PIC.IRQ_0...PIC.IRQ_15 => {
-            const irq: u8 = interrupt_num - PIC.IRQ_0;
-            // when handle isr, we maybe meet spurious IRQ
-            // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
-            const spurious = PIC.spurious_IRQ(irq);
-            if (!spurious) {
-                handlers[interrupt_num]();
+            if (is_apic) {
+                if (interrupt_num != 110) {
+                    handlers[interrupt_num]();
+                    APIC.EOI();
+                }
+            } else {
+                const irq: u8 = interrupt_num - PIC.IRQ_0;
+                // when handle isr, we maybe meet spurious IRQ
+                // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
+                const spurious = PIC.spurious_IRQ(irq);
+                if (!spurious) {
+                    handlers[interrupt_num]();
+                }
+                PIC.EOI(interrupt_num, spurious);
             }
-            PIC.EOI(interrupt_num, spurious);
         },
         SYSCALL => {
             tty.println("yes, we meet a syscall", null);
         },
         // Theoretically, it would not happen to reach this point.
-        else => unreachable,
+        else => {
+            tty.panicf("unexpected interrupt num is 0x{x}", interrupt_num);
+        },
     }
 }
 
@@ -391,10 +429,592 @@ const PIC = struct {
     fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
         const irq_num = @intFromEnum(irq);
 
-        register(@intCast(IRQ_0 + irq_num), handle);
+        register_handle(@intCast(IRQ_0 + irq_num), handle);
 
         mask_IRQ(irq, false);
     }
+};
+
+pub const APIC = struct {
+    var ia32_apic_base: cpu.IA32_APIC_BASE = undefined;
+
+    var max_lvt_len: u8 = 0;
+    var version: APIC_VERSION = undefined;
+
+    var eoi_can_set: bool = undefined;
+
+    pub fn init() void {
+        // about setting up apic
+        // wen can refer this article, https://blog.wesleyac.com/posts/ioapic-interrupts#fnref1
+        local_apic_init();
+
+        parse_RSDP();
+
+        io_apic_init();
+    }
+
+    fn registerIRQ(irq: PIC.IRQ, handle: *const fn () void) void {
+        const irq_num = @intFromEnum(irq);
+
+        register_handle(@intCast(PIC.IRQ_0 + irq_num), handle);
+
+        mask_IRQ(irq_num, false);
+    }
+
+    fn EOI() void {
+        Register.write_register(Register.EOI, 0);
+    }
+
+    fn mask_IRQ(irq: u8, mask: bool) void {
+        for (override_list) |value| {
+            if (value.irq_source == irq) {
+                mask_gsi(value.gsi, mask);
+                return;
+            }
+        }
+    }
+
+    fn mask_gsi(gsi: u32, mask: bool) void {
+        var val = ioapic_redtbl_read(gsi);
+        if (mask) {
+            val |= 1 << 16;
+        } else {
+            val &= ~@as(u64, 1 << 16);
+        }
+        ioapic_redtbl_write(gsi, val);
+    }
+
+    fn local_apic_init() void {
+        // TODO: add x2apic support
+
+        ia32_apic_base = cpu.IA32_APIC_BASE.read();
+
+        // hardware enable apic, by set bit11 of IA32_APIC_BASE
+        if (!ia32_apic_base.global_enable) {
+            ia32_apic_base.global_enable = true;
+            ia32_apic_base.write();
+        }
+
+        const lapic_version_register = Register.read_register(Register.lapic_version);
+        // const lapic_id_register = Register.read_register(Register.lapic_id);
+        // log.debug("lapic_id is 0x{x}, lapic_version is {s}, Max LVT Entry: 0x{x}, SVR(Suppress EOI Broadcast): {}", .{
+        //     lapic_id_register,
+        //     @tagName(version),
+        //     max_lvt_len,
+        //     eoi_can_set,
+        // });
+
+        version = APIC_VERSION.make(lapic_version_register);
+        max_lvt_len = @intCast((lapic_version_register >> 16 & 0xff) + 1);
+        eoi_can_set = lapic_version_register >> 24 & 0x1 == 1;
+
+        // Register.write_register(.TPR, 0x4 << 4);
+
+        // software enable APIC
+        const svr = Register.read_register(Register.SVR);
+        // enable SVR apic and disable SVR EOI bit
+        Register.write_register(Register.SVR, (((svr & ~@as(u32, 0xff)) | 110) | 0x100) & ~@as(u32, 0x1000));
+
+        idt_set_descriptor(110, isr110, @intFromEnum(FLAGS.interrupt_gate));
+        // TODO: set TPR register
+    }
+
+    var ioAPIC_ver: u32 = undefined;
+    fn io_apic_init() void {
+        ioAPIC_ver = read_ioapic_register(0x1);
+        var rte_num: u8 = @truncate((ioAPIC_ver >> 16) & 0xff);
+        // remap gsi
+        for (0..rte_num) |value| {
+            ioapic_redirect(@intCast(value), 0, null);
+        }
+
+        // map gsi to irq through override
+        for (override_list) |value| {
+            ioapic_redirect(value.gsi, value.flags, value.irq_source);
+        }
+    }
+
+    const RSDP = struct {
+        addr: usize,
+
+        const REVISION = enum {
+            v1,
+            v2,
+        };
+
+        fn init(paddr: usize) RSDP {
+            return .{
+                .addr = paddr,
+            };
+        }
+
+        fn signature(self: RSDP) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[0..8];
+        }
+
+        fn OEM_id(self: RSDP) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[9..15];
+        }
+
+        fn get_revision(self: RSDP) ?REVISION {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            var tmp_revision = tmp_ptr[15];
+            if (tmp_revision == 0) {
+                return REVISION.v1;
+            }
+
+            if (tmp_revision == 2) {
+                return REVISION.v2;
+            }
+
+            return null;
+        }
+
+        fn checksum(self: RSDP) void {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+
+            var sum: u8 = 0;
+
+            if (tmp_ptr[15] == 0) {
+                for (tmp_ptr[0..20]) |byte| {
+                    sum +%= byte;
+                }
+            } else if (tmp_ptr[15] == 2) {
+                for (tmp_ptr[0..36]) |byte| {
+                    sum +%= byte;
+                }
+            }
+
+            if (sum != 0) {
+                tty.panicf("sorry, checksum v2 part failed, sum is {}", sum);
+            }
+        }
+
+        fn rsdt_addr(self: RSDP) usize {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 16);
+            return @intCast(tmp_ptr.*);
+        }
+
+        fn length(self: RSDP) u32 {
+            if (self.get_revision()) |revision| {
+                if (revision == .v2) {
+                    var tmp_ptr: *u32 = @ptrFromInt(self.addr + 20);
+                    return tmp_ptr.*;
+                }
+            }
+            @panic("sorry, rsdp is v1, can't get length");
+        }
+
+        fn xsdt_addr(self: RSDP) usize {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 24);
+            return @intCast(tmp_ptr.*);
+        }
+    };
+
+    var rsdp: RSDP = undefined;
+    fn parse_RSDP() void {
+        if (cpu.rsdp_request.response) |response| {
+            rsdp = RSDP.init(@intFromPtr(response.address));
+        } else {
+            @panic("sorry, getting rsdp response failed");
+        }
+
+        if (rsdp.get_revision()) |revision| {
+            switch (revision) {
+                .v1 => {
+                    parse_RSDT();
+                },
+                .v2 => {
+                    // TODO: add rsdp v2 handle
+                    // add parse for XSDT
+                    @panic("now not support RSDP V2");
+                },
+            }
+        } else {
+            tty.panicf("rsdp revision is unexpected", null);
+        }
+    }
+
+    var rsdt: RSDT = undefined;
+    fn parse_RSDT() void {
+        // TODO: add more parse
+        rsdt = RSDT.init(rsdp.rsdt_addr());
+
+        var res: bool = false;
+        for (rsdt.pointers) |value| {
+            var addr: usize = value;
+            var tmp = ACPI_SDT_header.init(addr);
+            var tmp_arr = "APIC";
+            if (std.mem.eql(u8, tmp.signature(), tmp_arr)) {
+                madt = MADT.init(addr);
+                parse_MADT();
+            }
+        }
+
+        if (res) {
+            @panic("sorry, we didn't find MADT in RSDT");
+        }
+    }
+
+    var madt: MADT = undefined;
+
+    var io_apic_addr: usize = undefined;
+
+    var override_arr: [48]*align(1) MADT.IO_APIC_ISO = undefined;
+    var override_list: []*align(1) MADT.IO_APIC_ISO = undefined;
+
+    fn parse_MADT() void {
+        var index: u32 = 0;
+        var entries = madt.entries;
+        var override_num: u8 = 0;
+        while (index < madt.entries.len) {
+            var addr = @intFromPtr(&entries[index]);
+
+            switch (entries[index]) {
+                0 => {
+                    var ptr: *align(1) MADT.Local_APIC = @ptrFromInt(addr);
+                    _ = ptr;
+                    // log.debug("{any}", ptr.*);
+                },
+                1 => {
+                    var ptr: *align(1) MADT.IO_APIC = @ptrFromInt(addr);
+
+                    // important!
+                    io_apic_addr = ptr.io_apic_addr;
+
+                    // log.debug("{any}", ptr.*);
+                },
+                2 => {
+                    var ptr: *align(1) MADT.IO_APIC_ISO = @ptrFromInt(addr);
+                    override_arr[override_num] = ptr;
+                    override_num += 1;
+                },
+                3 => {
+                    var ptr: *align(1) MADT.IO_APIC_NMI = @ptrFromInt(addr);
+                    _ = ptr;
+                    // log.debug("{any}", ptr.*);
+                },
+                4 => {
+                    var ptr: *align(1) MADT.LOCAL_APIC_NMI = @ptrFromInt(addr);
+                    _ = ptr;
+                    // log.debug("{any}", ptr.*);
+                },
+                5 => {
+                    var ptr: *align(1) MADT.LOCAL_APIC_ADDR_OVERRIDE = @ptrFromInt(addr);
+                    _ = ptr;
+                    // log.debug("{any}", ptr.*);
+                },
+                9 => {
+                    var ptr: *align(1) MADT.Process_Local_X2APIC = @ptrFromInt(addr);
+                    _ = ptr;
+                    // log.debug("{any}", ptr.*);
+                },
+                else => {
+                    @panic("unrecognized type");
+                },
+            }
+            index += entries[index + 1];
+        }
+
+        override_list = override_arr[0..override_num];
+    }
+
+    // TODO: add io apic register
+    const IO_APIC_REGISTER = enum(u8) {
+        ID = 0x00,
+        VERSION = 0x01,
+        TBL0_0 = 0x10,
+        TBL0_1 = 0x11,
+    };
+
+    fn write_ioapic_register(offset: u32, val: u32) void {
+        var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
+        IOREGSEL.* = offset;
+        var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
+        IOREGWIN.* = val;
+    }
+
+    fn read_ioapic_register(offset: u32) u32 {
+        var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
+        IOREGSEL.* = offset;
+        var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
+        return IOREGWIN.*;
+    }
+
+    fn ioapic_redtbl_write(gsi: u32, val: u64) void {
+        var ioredtbl = gsi * 2 + 0x10;
+        write_ioapic_register(ioredtbl, @truncate(val));
+        write_ioapic_register(ioredtbl + 1, @truncate(val >> 32));
+    }
+
+    fn ioapic_redtbl_read(gsi: u32) u64 {
+        var ioredtbl = gsi * 2 + 0x10;
+        const low = read_ioapic_register(ioredtbl);
+        const high: u64 = read_ioapic_register(ioredtbl + 1);
+        return (high << 32) + low;
+    }
+
+    fn ioapic_redirect(gsi: u32, flags: u16, irq: ?u8) void {
+        var redirection: u64 =
+            if (irq) |irq_n|
+            irq_n + 0x20
+        else
+            gsi + 0x30;
+
+        if (flags & 2 != 0)
+            redirection |= (1 << 13);
+        if (flags & 8 != 0)
+            redirection |= (1 << 15);
+
+        redirection |= (1 << 16);
+
+        // current apic target is 0
+        ioapic_redtbl_write(gsi, redirection);
+    }
+
+    const RSDT = struct {
+        header: ACPI_SDT_header,
+        pointers: []u32,
+
+        fn init(paddr: usize) RSDT {
+            var tmp_header = ACPI_SDT_header.init(paddr);
+            var tmp_pointers: []u32 = @as([*]u32, @ptrFromInt(paddr))[9 .. tmp_header.length() / 4];
+            return .{
+                .header = tmp_header,
+                .pointers = tmp_pointers,
+            };
+        }
+    };
+
+    const MADT = struct {
+        header: ACPI_SDT_header,
+        lapic_address: usize,
+        flags: u32,
+        entries: []u8,
+
+        fn init(paddr: usize) MADT {
+            const tmp_header = ACPI_SDT_header.init(paddr);
+            const tmp_addr: *u32 = @ptrFromInt(ACPI_SDT_header.size() + paddr);
+            const tmp_flags: *u32 = @ptrFromInt(ACPI_SDT_header.size() + paddr + 4);
+            const ptr: [*]u8 = @ptrFromInt(paddr);
+            return .{
+                .header = tmp_header,
+                .lapic_address = tmp_addr.*,
+                .flags = tmp_flags.*,
+                .entries = ptr[ACPI_SDT_header.size() + 8 .. tmp_header.length()],
+            };
+        }
+
+        const Local_APIC = packed struct {
+            type: u8,
+            length: u8,
+            process_id: u8,
+            apic_id: u8,
+            flags: u32,
+        };
+
+        const IO_APIC = packed struct {
+            type: u8,
+            length: u8,
+            io_apic_id: u8,
+            reserved: u8,
+            io_apic_addr: u32,
+            gsi_base: u32,
+        };
+
+        const IO_APIC_ISO = packed struct {
+            type: u8,
+            length: u8,
+            bus_source: u8,
+            irq_source: u8,
+            gsi: u32,
+            flags: u16,
+        };
+
+        const IO_APIC_NMI = packed struct {
+            type: u8,
+            length: u8,
+            NMI_source: u8,
+            reserved: u8,
+            flags: u16,
+            gsi: u32,
+        };
+
+        const LOCAL_APIC_NMI = packed struct {
+            type: u8,
+            length: u8,
+            apic_process_id: u8,
+            flags: u16,
+            LINT: u8, // 0 or 1
+        };
+
+        const LOCAL_APIC_ADDR_OVERRIDE = packed struct {
+            type: u8,
+            length: u8,
+            reserved: u16,
+            addr_lapic: u64,
+        };
+
+        const Process_Local_X2APIC = packed struct {
+            type: u8,
+            length: u8,
+            reserved: u16,
+            process_local_x2APIC_id: u32,
+            flags: u32,
+            apic_id: u32,
+        };
+    };
+
+    const ACPI_SDT_header = packed struct {
+        addr: usize,
+
+        fn init(paddr: usize) ACPI_SDT_header {
+            return .{
+                .addr = paddr,
+            };
+        }
+
+        inline fn size() u8 {
+            return 36;
+        }
+
+        fn signature(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[0..4];
+        }
+
+        fn length(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 4);
+            return tmp_ptr.*;
+        }
+
+        fn revision(self: ACPI_SDT_header) u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[5];
+        }
+
+        fn checksum(self: ACPI_SDT_header) void {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            var sum: u8 = 0;
+
+            for (tmp_ptr[0..36]) |byte| {
+                sum +%= byte;
+            }
+
+            if (sum != 0) {
+                tty.panicf(
+                    "sorry, checksum acpi header failed, sum is {}, addr is 0x{x}",
+                    sum,
+                    self.addr,
+                );
+            }
+        }
+
+        fn OEM_id(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[10..16];
+        }
+
+        fn OEM_table_id(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[16..24];
+        }
+
+        fn creator_id(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 28);
+            return tmp_ptr.*;
+        }
+
+        fn creator_revision(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 32);
+            return tmp_ptr.*;
+        }
+    };
+
+    const APIC_VERSION = enum {
+        apic_82489DX,
+        apic_integrated,
+
+        fn make(value: u32) APIC_VERSION {
+            var tmp = value & 0xff;
+            if (tmp < 0x10) {
+                return APIC_VERSION.apic_82489DX;
+            } else if (0x10 <= tmp and tmp <= 0x15) {
+                return APIC_VERSION.apic_integrated;
+            }
+
+            @panic("can't identify the apic version");
+        }
+    };
+
+    const Register = enum(u16) {
+        lapic_id = 0x020,
+        lapic_version = 0x030,
+        TPR = 0x080,
+        APR = 0x090,
+        PPR = 0x0A0,
+        EOI = 0x0B0,
+        RRD = 0x0C0,
+        LDR = 0x0D0,
+        DFR = 0x0E0,
+        SVR = 0x0F0,
+
+        ISR_0 = 0x100,
+        ISR_1 = 0x110,
+        ISR_2 = 0x120,
+        ISR_3 = 0x130,
+        ISR_4 = 0x140,
+        ISR_5 = 0x150,
+        ISR_6 = 0x160,
+        ISR_7 = 0x170,
+
+        TMR_0 = 0x180,
+        TMR_1 = 0x190,
+        TMR_2 = 0x1A0,
+        TMR_3 = 0x1B0,
+        TMR_4 = 0x1C0,
+        TMR_5 = 0x1D0,
+        TMR_6 = 0x1E0,
+        TMR_7 = 0x1F0,
+
+        IRR_0 = 0x200,
+        IRR_1 = 0x210,
+        IRR_2 = 0x220,
+        IRR_3 = 0x230,
+        IRR_4 = 0x240,
+        IRR_5 = 0x250,
+        IRR_6 = 0x260,
+        IRR_7 = 0x270,
+
+        ESR = 0x280,
+        CMCI = 0x2F0,
+
+        ICR_0 = 0x300,
+        ICR_1 = 0x310,
+
+        lvt_timer = 0x320,
+        lvt_thermal_sensor = 0x330,
+        lvt_performance_monitoring_counters = 0x340,
+        lvt_LINT0 = 0x350,
+        lvt_LINT1 = 0x360,
+        lvt_error = 0x370,
+
+        initial_count = 0x380,
+        current_count = 0x390,
+        divide_config = 0x3E0,
+        fn read_register(apic_register: Register) u32 {
+            const offset: u16 = @intFromEnum(apic_register);
+            return @as(*u32, @ptrFromInt(ia32_apic_base.getAddress() + offset)).*;
+        }
+
+        fn write_register(apic_register: Register, value: u32) void {
+            const offset: u16 = @intFromEnum(apic_register);
+            var ptr: *volatile u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
+            ptr.* = value;
+        }
+    };
 };
 
 comptime {
@@ -506,11 +1126,12 @@ comptime {
         \\ isrGenerate 45
         \\ isrGenerate 46
         \\ isrGenerate 47
+        // suprious interrupt
+        \\ isrGenerate 110
         // syscall
         \\ isrGenerate 128
     );
 }
-
 // Interrupt Service Routines defined externally in assembly.
 extern fn isr0() void;
 extern fn isr1() void;
@@ -563,6 +1184,7 @@ extern fn isr45() void;
 extern fn isr46() void;
 extern fn isr47() void;
 // syscall
+extern fn isr110() void;
 extern fn isr128() void;
 
 fn install() void {

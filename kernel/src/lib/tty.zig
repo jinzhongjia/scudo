@@ -5,7 +5,7 @@ const fmt = std.fmt;
 const framebuffer = @import("tty/framebuffer.zig");
 const font = @import("tty/font.zig");
 const cpu = @import("../cpu.zig");
-const config = @import("config.zig");
+const config = @import("config");
 
 var maxHeight: u32 = undefined;
 var maxWidth: u32 = undefined;
@@ -114,7 +114,6 @@ pub fn scrollDown() void {
 
 /// 清屏，该处理方案并不好
 /// 后续考虑其他方案实现
-/// TODO: this function is abnormal
 pub fn clear() void {
     const address = framebuffer.address;
     const num = framebuffer.width * framebuffer.height * framebuffer.pixelwidth;
@@ -169,7 +168,7 @@ pub fn panic(msg: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
 
 pub fn panicf(comptime format: []const u8, args: anytype) noreturn {
     @setCold(true);
-    make_color_printf(framebuffer.color.red).printf(format, args);
+    make_color_printf(framebuffer.color.red_red).printf(format, args);
     cpu.stopCPU();
 }
 
@@ -205,14 +204,26 @@ fn make_color_printf(comptime FRColor: framebuffer.Entry) type {
     };
 }
 
-pub fn logf(comptime format: []const u8, args: anytype) void {
+pub fn logf(comptime format: []const u8, args: anytype, level: std.log.Level) void {
     @setCold(true);
-    make_color_printf(framebuffer.color.yellow).printf(format, args);
+    switch (level) {
+        .info => {
+            make_color_printf(framebuffer.color.cyan_blue).printf(format, args);
+        },
+        .warn => {
+            make_color_printf(framebuffer.color.bright_yellow).printf(format, args);
+        },
+        .err => {
+            make_color_printf(framebuffer.color.silver_vermilion).printf(format, args);
+        },
+        .debug => {
+            make_color_printf(framebuffer.color.light_green).printf(format, args);
+        },
+    }
 }
 
 /// for log implemention
 pub const std_options = struct {
-    pub const log_level = std.log.Level.debug;
     pub fn logFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
         const scope_prefix = "(" ++ switch (builtin.mode) {
             .Debug => @tagName(scope),
@@ -223,6 +234,6 @@ pub const std_options = struct {
         } ++ "): ";
 
         const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
-        logf(prefix ++ format ++ "\n", args);
+        logf(prefix ++ format ++ "\n", args, level);
     }
 };

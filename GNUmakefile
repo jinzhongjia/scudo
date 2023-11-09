@@ -1,7 +1,7 @@
 # Nuke built-in rules and variables.
 override MAKEFLAGS += -rR
 
-override IMAGE_NAME := zos
+override IMAGE_NAME := scudo
 
 # Convenience macro to reliably declare user overridable variables.
 define DEFAULT_VAR =

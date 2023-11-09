@@ -1,0 +1,2 @@
+- [How to set up the APIC to get keyboard interrupts](https://blog.wesleyac.com/posts/ioapic-interrupts#fnref1)
+- [acpi-object](https://www.kernel.org/doc/html/next/arm64/acpi_object_usage.html)

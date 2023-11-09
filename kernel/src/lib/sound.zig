@@ -1,6 +1,6 @@
 const clock = @import("clock.zig");
 const cpu = @import("../cpu.zig");
-const config = @import("config.zig");
+const config = @import("config");
 
 const PIT = clock.PIT;
 

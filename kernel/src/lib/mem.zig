@@ -3,7 +3,7 @@ const idt = @import("idt.zig");
 const tty = @import("tty.zig");
 const cpu = @import("../cpu.zig");
 const lib = @import("../lib.zig");
-const config = @import("config.zig").mem;
+const config = @import("config").mem;
 
 pub const PAGE_SIZE = 0x1000;
 
@@ -20,8 +20,6 @@ pub fn init() void {
 }
 
 pub const P_MEM = struct {
-    // NOTE: this module should be rewrite!!!
-
     /// this is entries for memory map
     var memmap_entries: []*limine.MemoryMapEntry = undefined;
 
@@ -196,13 +194,12 @@ pub const V_MEM = struct {
 
         // attempt to clear low half virtual address
         {
-            // TODO: here is error
             // @memset(@as([*]u8, @ptrCast(PML4))[0 .. 256 * @sizeOf(PageMapLevel4Entry)], 0);
             @memset(PML4[0..256], PageMapLevel4Entry{});
             // @compileLog(@sizeOf(PageMapLevel4Entry));
         }
 
-        idt.register(14, pageFault);
+        idt.register_handle(14, pageFault);
     }
 
     fn pageFault() noreturn {
