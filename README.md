@@ -30,3 +30,7 @@ make run
 - [hobbyos](https://github.com/pdoane/osdev)
 - [Florence](https://github.com/FlorenceOS/Florence)
 - [一个64位操作系统的设计与实现](https://github.com/yifengyou/The-design-and-implementation-of-a-64-bit-os)
+
+## Thanks
+
+- https://github.com/N00byEdge
