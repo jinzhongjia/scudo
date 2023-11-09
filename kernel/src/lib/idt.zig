@@ -558,9 +558,8 @@ pub const APIC = struct {
         }
     };
 
+    var rsdp: RSDP = undefined;
     fn parse_RSDP() void {
-        var rsdp: RSDP = undefined;
-
         if (cpu.rsdp_request.response) |response| {
             rsdp = RSDP.init(@intFromPtr(response.address));
         } else {
@@ -572,9 +571,7 @@ pub const APIC = struct {
         if (rsdp.get_revision()) |revision| {
             switch (revision) {
                 .v1 => {
-                    // const rsdt_addr = rsdp.rsdt_addr();
-                    // const ptr: [*]u8 = @ptrFromInt(rsdt_addr + 10);
-                    // log.debug("content is {s}", ptr[0..6]);
+                    parse_RSDT();
                 },
                 .v2 => {
                     // TODO: add rsdp v2 handle
@@ -586,17 +583,101 @@ pub const APIC = struct {
         }
     }
 
-    // const ACPI_SDT_header = packed struct {
-    //     signature: u32,
-    //     length: u32,
-    //     revision: u8,
-    //     checksum: u8,
-    //     OEM_id: u48,
-    //     OEM_table_id: u64,
-    //     OEM_revision: u32,
-    //     creator_id: u32,
-    //     creator_revision: u32,
-    // };
+    var rsdt: RSDT = undefined;
+    fn parse_RSDT() void {
+        rsdt = RSDT.init(rsdp.rsdt_addr());
+
+        log.info("{s}", "start output");
+        for (rsdt.pointers) |value| {
+            var addr: usize = value;
+            var tmp = ACPI_SDT_header.init(addr);
+            log.debug("{s}", tmp.signature());
+        }
+    }
+
+    const RSDT = struct {
+        header: ACPI_SDT_header,
+        pointers: []u32,
+
+        fn init(paddr: usize) RSDT {
+            var tmp_header = ACPI_SDT_header.init(paddr);
+            var tmp_pointers: []u32 = @as([*]u32, @ptrFromInt(paddr))[9 .. tmp_header.length() / 4];
+            return .{
+                .header = tmp_header,
+                .pointers = tmp_pointers,
+            };
+        }
+    };
+
+    const MADT = struct {
+        header: ACPI_SDT_header,
+    };
+
+    const ACPI_SDT_header = packed struct {
+        addr: usize,
+
+        fn init(paddr: usize) ACPI_SDT_header {
+            return .{
+                .addr = paddr,
+            };
+        }
+
+        inline fn size() u8 {
+            return 36;
+        }
+
+        fn signature(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[0..4];
+        }
+
+        fn length(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 4);
+            return tmp_ptr.*;
+        }
+
+        fn revision(self: ACPI_SDT_header) u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[5];
+        }
+
+        fn checksum(self: ACPI_SDT_header) void {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            var sum: u8 = 0;
+
+            for (tmp_ptr[0..36]) |byte| {
+                sum +%= byte;
+            }
+
+            if (sum != 0) {
+                tty.panicf(
+                    "sorry, checksum acpi header failed, sum is {}, addr is 0x{x}",
+                    sum,
+                    self.addr,
+                );
+            }
+        }
+
+        fn OEM_id(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[10..16];
+        }
+
+        fn OEM_table_id(self: ACPI_SDT_header) []u8 {
+            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            return tmp_ptr[16..24];
+        }
+
+        fn creator_id(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 28);
+            return tmp_ptr.*;
+        }
+
+        fn creator_revision(self: ACPI_SDT_header) u32 {
+            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 32);
+            return tmp_ptr.*;
+        }
+    };
 
     const APIC_VERSION = enum {
         apic_82489DX,
