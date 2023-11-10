@@ -29,6 +29,9 @@ pub fn build(b: *std.Build) !void {
     target.cpu_features_sub.addFeature(@intFromEnum(Features.avx2));
     target.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
 
+    const options = b.addOptions();
+    options.addOption(u64, "timeStamp", @intCast(std.time.timestamp()));
+
     // Build the kernel itself.
     const optimize = b.standardOptimizeOption(.{});
     const limine = b.dependency("limine", .{});
@@ -38,6 +41,8 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+
+    kernel.addOptions("build_info", options);
     kernel.code_model = .kernel;
 
     kernel.addModule("limine", limine.module("limine"));

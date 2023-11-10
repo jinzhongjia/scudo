@@ -1,5 +1,6 @@
 const lib = @import("lib.zig");
 const cpu = @import("cpu.zig");
+const build_info = @import("build_info");
 const kernel_test = @import("kernel_test.zig").test_kernel;
 
 pub fn main() noreturn {
@@ -33,9 +34,22 @@ inline fn detect() void {
 }
 
 inline fn print_info() void {
+    const utc = lib.time.timeStamp2UTC(build_info.timeStamp);
+    const time = lib.time.UTC2(utc, .CTorCST);
+
+    lib.log.warn(
+        \\Build Time: {}-{}-{} {}:{}
+    , .{
+        time.year,
+        time.month,
+        time.day,
+        time.hour,
+        time.minute,
+    });
+
     lib.tty.Color_Print(lib.tty.COLOR.red,
         \\Note:This is an experimental project!
-        \\Now kernel is hang! 
+        \\Now kernel is hang!
     );
 
     cpu.hlt();
