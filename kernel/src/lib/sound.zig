@@ -22,9 +22,9 @@ pub const PC_SPEAKER = struct {
         cpu.outb(0x42, @truncate(BEEP_COUNTER));
         cpu.outb(0x42, @truncate(BEEP_COUNTER >> 8));
 
-        // {
-        //     PIT.register_handle(speaker_handle);
-        // }
+        {
+            // PIT.register_handle(speaker_handle);
+        }
     }
 
     pub fn start_beep() void {
@@ -36,18 +36,18 @@ pub const PC_SPEAKER = struct {
     }
 };
 
-// var counter: u8 = 0;
-// var enable = false;
-// fn speaker_handle() void {
-//     if (!enable and counter < 50) {
-//         PC_SPEAKER.start_beep();
-//         enable = true;
-//     }
-//
-//     if (enable and counter > 50) {
-//         PC_SPEAKER.stop_beep();
-//         enable = false;
-//     }
-//
-//     counter = (counter + 1) % 100;
-// }
+var counter: u8 = 0;
+var enable = false;
+fn speaker_handle() void {
+    if (!enable and counter < 50) {
+        PC_SPEAKER.start_beep();
+        enable = true;
+    }
+
+    if (enable and counter > 50) {
+        PC_SPEAKER.stop_beep();
+        enable = false;
+    }
+
+    counter = (counter + 1) % 100;
+}

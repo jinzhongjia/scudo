@@ -4,6 +4,7 @@ const std = @import("std");
 const tty = @import("tty.zig");
 const config = @import("config");
 const cpu = @import("../cpu.zig");
+const mem = @import("mem.zig");
 const log = @import("../lib.zig").log;
 
 pub const IRQ_ENUM = PIC.IRQ;
@@ -240,7 +241,7 @@ export fn interruptDispatch() void {
 
     const interrupt_num: u8 = @intCast(context.interrupt_num);
 
-    tty.println("a interrupt come, is {}", interrupt_num);
+    // tty.println("a interrupt come, is {}", interrupt_num);
 
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
@@ -640,7 +641,7 @@ pub const APIC = struct {
     var rsdt: RSDT = undefined;
     fn parse_RSDT() void {
         // TODO: add more parse
-        rsdt = RSDT.init(rsdp.rsdt_addr());
+        rsdt = RSDT.init(mem.V_MEM.paddr_2_high_half(rsdp.rsdt_addr()));
 
         var res: bool = false;
         for (rsdt.pointers) |value| {
@@ -648,8 +649,9 @@ pub const APIC = struct {
             var tmp = ACPI_SDT_header.init(addr);
             var tmp_arr = "APIC";
             if (std.mem.eql(u8, tmp.signature(), tmp_arr)) {
-                madt = MADT.init(addr);
+                madt = MADT.init(mem.V_MEM.paddr_2_high_half(addr));
                 parse_MADT();
+                break;
             }
         }
 
@@ -682,7 +684,9 @@ pub const APIC = struct {
                     var ptr: *align(1) MADT.IO_APIC = @ptrFromInt(addr);
 
                     // important!
-                    io_apic_addr = ptr.io_apic_addr;
+                    io_apic_addr =
+                        mem.V_MEM.paddr_2_high_half(ptr.io_apic_addr);
+                    // tty.println("0x{x}", io_apic_addr);
 
                     // log.debug("{any}", ptr.*);
                 },

@@ -7,6 +7,8 @@ const font = @import("tty/font.zig");
 const cpu = @import("../cpu.zig");
 const config = @import("config");
 
+pub const COLOR = framebuffer.color;
+
 var maxHeight: u32 = undefined;
 var maxWidth: u32 = undefined;
 
@@ -79,10 +81,14 @@ fn color_char(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, char: u8) 
 }
 
 // 字符串打印
-pub fn color_string(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, string: []const u8) void {
+fn color_string(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, string: []const u8) void {
     for (string) |char| {
         color_char(FRColor, BKColor, char);
     }
+}
+
+pub fn Color_Print(color: framebuffer.Entry, string: []const u8) void {
+    color_string(color, framebuffer.color.black, string);
 }
 
 /// 更新位置

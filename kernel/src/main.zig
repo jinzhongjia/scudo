@@ -12,11 +12,7 @@ pub fn main() noreturn {
     // test unit for kernel
     kernel_test();
 
-    lib.log.err(
-        \\Note:This is an experimental project!
-        \\Now kernel is hang!
-    , null);
-    cpu.hlt();
+    print_info();
 }
 
 inline fn module_init() void {
@@ -34,4 +30,13 @@ inline fn detect() void {
     if (!cpu.MSR.is_avaiable()) {
         @panic("The current computer does not support the MSR");
     }
+}
+
+inline fn print_info() void {
+    lib.tty.Color_Print(lib.tty.COLOR.red,
+        \\Note:This is an experimental project!
+        \\Now kernel is hang! 
+    );
+
+    cpu.hlt();
 }

@@ -7,10 +7,6 @@ const log = lib.log.scoped(.scudo);
 
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
-    if (builtin.mode != .Debug) {
-        lib.tty.clear();
-    }
-
     log.debug("build mode {s}", @tagName(builtin.mode));
 
     // println("0x{x}", cpu.IA32_APIC_BASE.read().getAddress());
