@@ -473,6 +473,11 @@ pub const APIC = struct {
                 return;
             }
         }
+        log.err("now found irq={} I/O APIC override", irq);
+
+        // TODO: handle other register
+        //
+        // mask_gsi(irq, mask);
     }
 
     fn mask_gsi(gsi: u32, mask: bool) void {
@@ -686,7 +691,6 @@ pub const APIC = struct {
                     // important!
                     io_apic_addr =
                         mem.V_MEM.paddr_2_high_half(ptr.io_apic_addr);
-                    // tty.println("0x{x}", io_apic_addr);
 
                     // log.debug("{any}", ptr.*);
                 },
@@ -694,6 +698,7 @@ pub const APIC = struct {
                     var ptr: *align(1) MADT.IO_APIC_ISO = @ptrFromInt(addr);
                     override_arr[override_num] = ptr;
                     override_num += 1;
+                    // log.debug("{any}", ptr.*);
                 },
                 3 => {
                     var ptr: *align(1) MADT.IO_APIC_NMI = @ptrFromInt(addr);

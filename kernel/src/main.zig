@@ -14,6 +14,8 @@ pub fn main() noreturn {
     kernel_test();
 
     print_info();
+
+    cpu.hlt();
 }
 
 inline fn module_init() void {
@@ -51,6 +53,4 @@ inline fn print_info() void {
         \\Note:This is an experimental project!
         \\Now kernel is hang!
     );
-
-    cpu.hlt();
 }
