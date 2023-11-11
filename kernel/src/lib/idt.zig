@@ -26,6 +26,8 @@ pub fn init() void {
         idt_set_descriptor(index, make_undefined_handle(@intCast(index)), @intFromEnum(FLAGS.interrupt_gate));
     }
 
+    idt_set_descriptor_naked(66, generate_handle(66), @intFromEnum(FLAGS.interrupt_gate));
+
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
@@ -129,6 +131,16 @@ var idtr: idtr_t = .{
 };
 
 fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8) void {
+    const ptr_int = @intFromPtr(isr);
+
+    idt[vector] = idt_entry_t{
+        .isr_low = @truncate(ptr_int & 0xFFFF),
+        .type_attributes = flags,
+        .isr_middle = @truncate((ptr_int >> 16) & 0xFFFF),
+        .isr_high = @truncate((ptr_int >> 32) & 0xFFFFFFFF),
+    };
+}
+fn idt_set_descriptor_naked(vector: u8, isr: *const fn () callconv(.Naked) void, flags: u8) void {
     const ptr_int = @intFromPtr(isr);
 
     idt[vector] = idt_entry_t{
@@ -1026,49 +1038,48 @@ pub const APIC = struct {
     };
 };
 
-pub fn generate_handle(comptime num: u8) fn () callconv(.C) void {
+pub fn generate_handle(comptime num: u8) fn () callconv(.Naked) void {
     const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
+    if (for (error_code_list) |value| {
+        if (value == num) {
+            break true;
+        }
+    } else false) {
+        return struct {
+            fn handle() callconv(.Naked) void {}
+        }.handle;
+    }
+    const cmd = std.fmt.comptimePrint(
+        \\     push $0b10000000000000000
+        \\     push ${}
+        \\     push %rax
+        \\     push %rcx
+        \\     push %rdx
+        \\     push %rbx
+        \\     push %rsp
+        \\     push %rbp
+        \\     push %rsi
+        \\     push %rdi
+    , .{num});
     return struct {
-        fn handle() callconv(.C) void {
-            var rbp: usize = cpu.rbp();
-            const previous_rbp: *usize = @ptrFromInt(rbp);
-            const previous_rsp: usize = rbp + 8;
-
-            const error_code: ?*usize = for (error_code_list) |value| {
-                if (value == num) {
-                    rbp += 8;
-                    break @ptrFromInt(rbp);
-                }
-            } else null;
-            _ = error_code;
-
-            const rip: *usize = @ptrFromInt(rbp + 8);
-            _ = rip;
-            const cs: *usize = @ptrFromInt(rbp + 16);
-            _ = cs;
-            const eflags: *usize = @ptrFromInt(rbp + 24);
-            _ = eflags;
-            const rsp: *usize = @ptrFromInt(rbp + 32);
-            _ = rsp;
-            const ss: *usize = @ptrFromInt(rbp + 40);
-            _ = ss;
-
-            {
-                // 跳转到具体的中断处理函数中，
-            }
-
-            cpu.debug();
-            asm volatile ("mov %[in], %rbp"
-                :
-                : [in] "r" (previous_rbp.*),
-                : "memory"
+        fn handle() callconv(.Naked) void {
+            asm volatile (cmd ::: "memory");
+            asm volatile ("mov %rsp, context");
+            asm volatile ("mov context, %rsp");
+            asm volatile (
+                \\     pop %rdi
+                \\     pop %rsi
+                \\     pop %rbp
+                \\     pop %rsp
+                \\     pop %rbx
+                \\     pop %rdx
+                \\     pop %rcx
+                \\     pop %rax
+                \\     add $16, %rsp
+                \\     iretq
             );
-            asm volatile ("mov %[in], %rsp"
-                :
-                : [in] "r" (previous_rsp),
-                : "memory"
-            );
-            asm volatile ("iretq");
+
+            // asm volatile ("iretq");
         }
     }.handle;
 }

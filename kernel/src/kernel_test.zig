@@ -10,6 +10,8 @@ pub inline fn test_kernel() void {
     log.debug("build mode {s}", @tagName(builtin.mode));
 
     // println("0x{x}", cpu.IA32_APIC_BASE.read().getAddress());
+    cpu.debug();
+    asm volatile ("int $66");
 
     // test v mem map
     if (false) {
