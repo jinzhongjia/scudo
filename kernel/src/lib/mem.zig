@@ -199,7 +199,7 @@ pub const V_MEM = struct {
             // @compileLog(@sizeOf(PageMapLevel4Entry));
         }
 
-        idt.register_handle(14, pageFault);
+        idt.registerInterruptHandle(14, pageFault);
     }
 
     fn pageFault() noreturn {

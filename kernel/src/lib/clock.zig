@@ -32,6 +32,6 @@ pub const PIT = struct {
     }
 
     pub fn register_handle(handle: *const fn () void) void {
-        idt.Register_IRQ(idt.IRQ_ENUM.CLOCK, handle);
+        idt.registerInterruptHandle(0x20 + 0, handle);
     }
 };

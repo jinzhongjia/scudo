@@ -23,7 +23,7 @@ pub const PC_SPEAKER = struct {
         cpu.outb(0x42, @truncate(BEEP_COUNTER >> 8));
 
         {
-            // PIT.register_handle(speaker_handle);
+            PIT.register_handle(speaker_handle);
         }
     }
 
