@@ -42,6 +42,12 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    // trip the symbols when build ReleaseSafe
+    if (kernel.optimize == .ReleaseSafe) {
+        kernel.strip = true;
+    }
+    kernel.code_model = .kernel;
+
     kernel.addOptions("build_info", options);
     kernel.code_model = .kernel;
 
