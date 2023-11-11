@@ -2,7 +2,7 @@ const lib = @import("lib.zig");
 const cpu = @import("cpu.zig");
 const build_info = @import("build_info");
 const kernel_test = @import("kernel_test.zig").test_kernel;
-
+const keyboard = @import("keyboard.zig");
 pub fn main() noreturn {
     lib.tty.init();
     // Check whether the CPU supports required features
@@ -14,6 +14,7 @@ pub fn main() noreturn {
     kernel_test();
 
     print_info();
+    keyboard.init();
 
     cpu.hlt();
 }
