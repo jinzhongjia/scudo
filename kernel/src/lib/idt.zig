@@ -434,6 +434,8 @@ const APIC = struct {
                         return;
                     }
                 }
+                register_handle(@intCast(0x30 + irq_num), handle);
+                mask_gsi(irq_num, false);
             },
             else => {
                 register_handle(vector, handle);
