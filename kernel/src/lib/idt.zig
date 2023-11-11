@@ -1026,6 +1026,53 @@ pub const APIC = struct {
     };
 };
 
+pub fn generate_handle(comptime num: u8) fn () callconv(.C) void {
+    const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
+    return struct {
+        fn handle() callconv(.C) void {
+            var rbp: usize = cpu.rbp();
+            const previous_rbp: *usize = @ptrFromInt(rbp);
+            const previous_rsp: usize = rbp + 8;
+
+            const error_code: ?*usize = for (error_code_list) |value| {
+                if (value == num) {
+                    rbp += 8;
+                    break @ptrFromInt(rbp);
+                }
+            } else null;
+            _ = error_code;
+
+            const rip: *usize = @ptrFromInt(rbp + 8);
+            _ = rip;
+            const cs: *usize = @ptrFromInt(rbp + 16);
+            _ = cs;
+            const eflags: *usize = @ptrFromInt(rbp + 24);
+            _ = eflags;
+            const rsp: *usize = @ptrFromInt(rbp + 32);
+            _ = rsp;
+            const ss: *usize = @ptrFromInt(rbp + 40);
+            _ = ss;
+
+            {
+                // 跳转到具体的中断处理函数中，
+            }
+
+            cpu.debug();
+            asm volatile ("mov %[in], %rbp"
+                :
+                : [in] "r" (previous_rbp.*),
+                : "memory"
+            );
+            asm volatile ("mov %[in], %rsp"
+                :
+                : [in] "r" (previous_rsp),
+                : "memory"
+            );
+            asm volatile ("iretq");
+        }
+    }.handle;
+}
+
 comptime {
     asm (
     // Template for the Interrupt Service Routines.
