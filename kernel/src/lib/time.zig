@@ -294,9 +294,9 @@ const RTC = struct {
         // set_alarm_time(2);
 
         // register handle for RTC interrupt
-        idt.Register_IRQ(idt.IRQ_ENUM.RTC, interrupt_handle);
+        idt.registerInterruptHandle(0x20 + 8, interrupt_handle);
         // unmask IRQ_CASCADE, id is 2
-        idt.Mask_IRQ(idt.IRQ_ENUM.CASCADE, false);
+        idt.Mask_VECTOR(0x20 + 2, false);
     }
 
     fn set_alarm_time(secs_value: u32) void {

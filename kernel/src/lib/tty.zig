@@ -80,6 +80,26 @@ fn color_char(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, char: u8) 
     }
 }
 
+pub fn back_char() void {
+    if (width == 0) {
+        if (height == 0) {
+            return;
+        }
+        width = @intCast(maxWidth - 1);
+        height -= 1;
+    } else {
+        width -= 1;
+    }
+
+    const tmp_width = width;
+    const tmp_height = height;
+    putchar(COLOR.black, COLOR.black, ' ');
+    width = tmp_width;
+    height = tmp_height;
+    // width = 0;
+    // height = 0;
+}
+
 // 字符串打印
 fn color_string(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, string: []const u8) void {
     for (string) |char| {

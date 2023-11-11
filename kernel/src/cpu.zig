@@ -78,6 +78,12 @@ pub inline fn rbp() usize {
     );
 }
 
+pub inline fn rsp() usize {
+    return asm volatile ("mov %rsp, %[result]"
+        : [result] "=r" (-> u64),
+    );
+}
+
 // before use this, we need to call check function
 pub const CPUID = extern struct {
     eax: u32,

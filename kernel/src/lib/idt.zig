@@ -7,29 +7,48 @@ const cpu = @import("../cpu.zig");
 const mem = @import("mem.zig");
 const log = @import("../lib.zig").log;
 
-pub const IRQ_ENUM = PIC.IRQ;
-pub const Mask_IRQ = PIC.mask_IRQ;
+pub fn Mask_VECTOR(vector: u8, mask: bool) void {
+    if (is_apic) {
+        switch (vector) {
+            0...0x1f => {},
+            PIC.IRQ_0...PIC.IRQ_15 => {
+                const irq_num = vector - PIC.IRQ_0;
+                for (APIC.override_list) |value| {
+                    if (value.irq_source == irq_num) {
+                        APIC.mask_gsi(value.gsi, mask);
+                        return;
+                    }
+                }
+            },
+            else => {
+                APIC.mask_gsi(vector, mask);
+            },
+        }
+    } else {
+        PIC.mask_IRQ(vector - PIC.IRQ_0, mask);
+    }
+}
 
 var is_apic: bool = undefined;
 
-pub fn Register_IRQ(irq: PIC.IRQ, handle: *const fn () void) void {
+// Registered functions exposed to the outside world
+pub fn registerInterruptHandle(vector: u8, handle: *const fn () void) void {
     if (is_apic) {
-        APIC.registerIRQ(irq, handle);
+        APIC.registerIRQ(vector, handle);
     } else {
-        PIC.registerIRQ(irq, handle);
+        PIC.registerIRQ(vector, handle);
     }
 }
 
 pub fn init() void {
-    // We set up the entire idt here to prevent unknown problems.
-    inline for (0..idt.len) |index| {
-        idt_set_descriptor(index, make_undefined_handle(@intCast(index)), @intFromEnum(FLAGS.interrupt_gate));
-    }
 
     // note: we have set default limit through zig's struct field default value
     idtr.base = @intFromPtr(&idt[0]);
 
-    install();
+    inline for (0..idt.len) |index| {
+        idt_set_descriptor(index, generate_handle(@intCast(index)), @intFromEnum(FLAGS.interrupt_gate));
+    }
+
     PIC.remap();
 
     if (config.enable_APIC and cpu.check_apic()) {
@@ -49,47 +68,6 @@ pub fn init() void {
     cpu.lidt(@intFromPtr(&idtr));
     // enable interrupt
     cpu.sti();
-}
-
-// this function must be used at comptime
-fn make_undefined_handle(comptime num: u8) fn () callconv(.C) void {
-    const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
-    return struct {
-        fn handle() callconv(.C) void {
-            var rbp: usize = cpu.rbp();
-            const error_code: ?*usize = for (error_code_list) |value| {
-                if (value == num) {
-                    rbp += 8;
-                    break @ptrFromInt(rbp);
-                }
-            } else null;
-
-            const rip: *usize = @ptrFromInt(rbp + 8);
-            const cs: *usize = @ptrFromInt(rbp + 16);
-            const eflags: *usize = @ptrFromInt(rbp + 24);
-            const rsp: *usize = @ptrFromInt(rbp + 32);
-            const ss: *usize = @ptrFromInt(rbp + 40);
-
-            if (error_code) |value| {
-                tty.println("error code is 0x{x}", value.*);
-            }
-
-            tty.println(
-                \\rip is 0x{x}"
-                \\cs is 0x{x}
-                \\eflags is 0x{x}
-                \\rsp is 0x{x}
-                \\ss is 0x{x}
-            , .{
-                rip.*,
-                cs.*,
-                eflags.*,
-                rsp.*,
-                ss.*,
-            });
-            tty.panicf("An undefined interrupt was triggered, interrupt id is {d}", num);
-        }
-    }.handle;
 }
 
 const GDT_OFFSET_KERNEL_CODE: u16 = 0b0000_0000_0010_1000;
@@ -128,7 +106,7 @@ var idtr: idtr_t = .{
     .base = 0,
 };
 
-fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8) void {
+fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.Naked) void, flags: u8) void {
     const ptr_int = @intFromPtr(isr);
 
     idt[vector] = idt_entry_t{
@@ -143,7 +121,7 @@ fn idt_set_descriptor(vector: u8, isr: *const fn () callconv(.C) void, flags: u8
 const EXCEPTION_0: u8 = 0;
 const EXCEPTION_31 = EXCEPTION_0 + 31;
 
-const SYSCALL = 128;
+const SYSCALL = 0x80;
 
 const messages = [_][]const u8{
     "#DE Divide Error",
@@ -177,82 +155,46 @@ const messages = [_][]const u8{
     "--  Reserved Interrupt",
 };
 
+const handlers_len = 256;
 // this is a handlers for interrupts which are installed!
 // note: we use compile-time code to initialize an array, that 's cool
-var handlers: [48]*const fn () void = init: {
-    var initial_value: [48]*const fn () void = undefined;
-    inline for (0..48) |index| {
-        initial_value[index] = make_unhandled(index);
+var handlers: [handlers_len]?*const fn () void = init: {
+    var initial_value: [handlers_len]?*const fn () void = undefined;
+    inline for (0..handlers_len) |index| {
+        initial_value[index] = null;
     }
     break :init initial_value;
 };
 
-// TODO: I think this function should be refactored
-fn make_unhandled(comptime num: u8) fn () noreturn {
-    return struct {
-        fn handle() noreturn {
-            if (num >= PIC.IRQ_0) {
-                tty.panicf(
-                    \\IRQ EXCEPTION: {d}
-                    \\       VECTOR: 0x{x:0>2}
-                    \\        ERROR: 0b{b:0>17}
-                    \\       RFLAGS: 0b{b:0>22}
-                    \\           CS: 0x{x:0>2}
-                    \\          RIP: 0x{x}
-                    \\          RSP: 0x{x}
-                , .{
-                    num - PIC.IRQ_0,
-                    num,
-                    context.error_code,
-                    context.rflags,
-                    context.cs,
-                    context.rip,
-                    context.rsp,
-                });
-            } else {
-                tty.panicf(
-                    \\EXCEPTION: {s}
-                    \\   VECTOR: 0x{x:0>2}
-                    \\    ERROR: 0b{b:0>17}
-                    \\   RFLAGS: 0b{b:0>22}
-                    \\       CS: 0x{x:0>2}
-                    \\      RIP: 0x{x}
-                    \\      RSP: 0x{x}
-                , .{
-                    messages[num],
-                    num,
-                    context.error_code,
-                    context.rflags,
-                    context.cs,
-                    context.rip,
-                    context.rsp,
-                });
-            }
-        }
-    }.handle;
-}
-
-pub fn register_handle(n: u8, handler: *const fn () void) void {
+// TODO:this function should be privited
+fn register_handle(n: u8, handler: *const fn () void) void {
     handlers[n] = handler;
 }
 
 export fn interruptDispatch() void {
-    // TODO: This function needs to be abstracted to support handling apic and 8259A_PIC
-
     const interrupt_num: u8 = @intCast(context.interrupt_num);
-
-    // tty.println("a interrupt come, is {}", interrupt_num);
 
     switch (interrupt_num) {
         EXCEPTION_0...EXCEPTION_31 => {
-            handlers[interrupt_num]();
+            if (handlers[interrupt_num]) |fun| {
+                fun();
+            } else {
+                log.err("EXCEPTION_{} is not registered", interrupt_num);
+                cpu.stopCPU();
+            }
         },
         // this logic should be refactored
         PIC.IRQ_0...PIC.IRQ_15 => {
             if (is_apic) {
                 if (interrupt_num != 110) {
-                    handlers[interrupt_num]();
-                    APIC.EOI();
+                    // handlers[interrupt_num]();
+                    if (handlers[interrupt_num]) |fun| {
+                        fun();
+                        APIC.EOI();
+                    } else {
+                        log.err("APIC_{} is not registered", interrupt_num);
+                        cpu.stopCPU();
+                    }
                 }
             } else {
                 const irq: u8 = interrupt_num - PIC.IRQ_0;
@@ -260,7 +202,13 @@ export fn interruptDispatch() void {
                 // more: https://wiki.osdev.org/PIC#Handling_Spurious_IRQs
                 const spurious = PIC.spurious_IRQ(irq);
                 if (!spurious) {
-                    handlers[interrupt_num]();
+                    // handlers[interrupt_num]();
+                    if (handlers[interrupt_num]) |fun| {
+                        fun();
+                    } else {
+                        log.err("PIC_IRQ_{} is not registered", interrupt_num);
+                        cpu.stopCPU();
+                    }
                 }
                 PIC.EOI(interrupt_num, spurious);
             }
@@ -270,7 +218,20 @@ export fn interruptDispatch() void {
         },
         // Theoretically, it would not happen to reach this point.
         else => {
-            tty.panicf("unexpected interrupt num is 0x{x}", interrupt_num);
+            if (is_apic) {
+                if (interrupt_num != 110) {
+                    if (handlers[interrupt_num]) |fun| {
+                        fun();
+                        APIC.EOI();
+                    } else {
+                        log.err("APIC_GSI_{} is not registered", interrupt_num);
+                        cpu.stopCPU();
+                    }
+                }
+            } else {
+                log.err("other_{} is not registered", interrupt_num);
+                cpu.stopCPU();
+            }
         },
     }
 }
@@ -298,7 +259,7 @@ const Context = packed struct {
 };
 
 // note: this registers order is according to hhe following assembly macro pushaq
-pub const Registers = packed struct {
+const Registers = packed struct {
     rdi: u64 = 0,
     rsi: u64 = 0,
     rbp: u64 = 0,
@@ -392,8 +353,8 @@ const PIC = struct {
         cpu.outb(PIC1_CMD, PIC_EOI);
     }
 
-    fn mask_IRQ(irq: IRQ, mask: bool) void {
-        const irq_num = @intFromEnum(irq);
+    fn mask_IRQ(irq: u8, mask: bool) void {
+        const irq_num = irq;
         const port: u16 = if (irq_num < 8) @intCast(PIC1_DATA) else @intCast(PIC2_DATA);
 
         const shift: u3 = @intCast(irq_num % 8);
@@ -427,16 +388,16 @@ const PIC = struct {
     }
 
     /// register handle for IRA, this will auto unmask
-    fn registerIRQ(irq: IRQ, handle: *const fn () void) void {
-        const irq_num = @intFromEnum(irq);
+    fn registerIRQ(vector: u8, handle: *const fn () void) void {
+        // const irq_num = @intFromEnum(irq);
 
-        register_handle(@intCast(IRQ_0 + irq_num), handle);
+        register_handle(vector, handle);
 
-        mask_IRQ(irq, false);
+        mask_IRQ(vector - IRQ_0, false);
     }
 };
 
-pub const APIC = struct {
+const APIC = struct {
     var ia32_apic_base: cpu.IA32_APIC_BASE = undefined;
 
     var max_lvt_len: u8 = 0;
@@ -454,30 +415,33 @@ pub const APIC = struct {
         io_apic_init();
     }
 
-    fn registerIRQ(irq: PIC.IRQ, handle: *const fn () void) void {
-        const irq_num = @intFromEnum(irq);
-
-        register_handle(@intCast(PIC.IRQ_0 + irq_num), handle);
-
-        mask_IRQ(irq_num, false);
-    }
-
     fn EOI() void {
         Register.write_register(Register.EOI, 0);
     }
 
-    fn mask_IRQ(irq: u8, mask: bool) void {
-        for (override_list) |value| {
-            if (value.irq_source == irq) {
-                mask_gsi(value.gsi, mask);
-                return;
-            }
+    const VECTOR_OFFSET = 0x30;
+    fn registerIRQ(vector: u8, handle: *const fn () void) void {
+        switch (vector) {
+            0...0x1f => {
+                register_handle(vector, handle);
+            },
+            PIC.IRQ_0...PIC.IRQ_15 => {
+                const irq_num = vector - PIC.IRQ_0;
+                for (override_list) |value| {
+                    if (value.irq_source == irq_num) {
+                        register_handle(vector, handle);
+                        mask_gsi(value.gsi, false);
+                        return;
+                    }
+                }
+                register_handle(@intCast(0x30 + irq_num), handle);
+                mask_gsi(irq_num, false);
+            },
+            else => {
+                register_handle(vector, handle);
+                mask_gsi(vector, false);
+            },
         }
-        log.err("now found irq={} I/O APIC override", irq);
-
-        // TODO: handle other register
-        //
-        // mask_gsi(irq, mask);
     }
 
     fn mask_gsi(gsi: u32, mask: bool) void {
@@ -520,9 +484,6 @@ pub const APIC = struct {
         const svr = Register.read_register(Register.SVR);
         // enable SVR apic and disable SVR EOI bit
         Register.write_register(Register.SVR, (((svr & ~@as(u32, 0xff)) | 110) | 0x100) & ~@as(u32, 0x1000));
-
-        idt_set_descriptor(110, isr110, @intFromEnum(FLAGS.interrupt_gate));
-        // TODO: set TPR register
     }
 
     var ioAPIC_ver: u32 = undefined;
@@ -1015,36 +976,22 @@ pub const APIC = struct {
         divide_config = 0x3E0,
         fn read_register(apic_register: Register) u32 {
             const offset: u16 = @intFromEnum(apic_register);
-            return @as(*u32, @ptrFromInt(ia32_apic_base.getAddress() + offset)).*;
+            return @as(*u32, @ptrFromInt(mem.V_MEM.paddr_2_high_half(ia32_apic_base.getAddress() + offset))).*;
         }
 
         fn write_register(apic_register: Register, value: u32) void {
             const offset: u16 = @intFromEnum(apic_register);
-            var ptr: *volatile u32 = @ptrFromInt(ia32_apic_base.getAddress() + offset);
+            var ptr: *volatile u32 = @ptrFromInt(mem.V_MEM.paddr_2_high_half(ia32_apic_base.getAddress() + offset));
             ptr.* = value;
         }
     };
 };
 
-comptime {
-    asm (
-    // Template for the Interrupt Service Routines.
-        \\ .macro isrGenerate n ec=0
-        \\     .align 4
-        \\     .type isr\n, @function
-        \\ 
-        \\     isr\n:
-        // Push a dummy error code for interrupts that don't have one.
-        \\         .if 1 - \ec
-        \\             push $0b10000000000000000
-        // 10000
-        \\         .endif
-        \\         push $\n
-        \\         jmp isrCommon
-        \\ .endmacro
-        \\
-        //  this macro function is used to replace pusha in 32-bits instruction
-        \\ .macro pushaq
+fn generate_handle(comptime num: u8) fn () callconv(.Naked) void {
+    const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
+
+    const public = std.fmt.comptimePrint(
+        \\     push ${}
         \\     push %rax
         \\     push %rcx
         \\     push %rdx
@@ -1053,10 +1000,23 @@ comptime {
         \\     push %rbp
         \\     push %rsi
         \\     push %rdi
-        \\ .endm # pushaq
+        \\     mov %rsp, context
+    , .{num});
+
+    const save_status = if (for (error_code_list) |value| {
+        if (value == num) {
+            break true;
+        }
+    } else false)
+        public
+    else
+        \\     push $0b10000000000000000
         \\
-        //  this macro function is used to replace pusha in 32-bits instruction
-        \\ .macro popaq
+        // Note: the Line breaks are very important
+            ++
+            public;
+    const restore_status =
+        \\     mov context, %rsp
         \\     pop %rdi
         \\     pop %rsi
         \\     pop %rbp
@@ -1065,187 +1025,14 @@ comptime {
         \\     pop %rdx
         \\     pop %rcx
         \\     pop %rax
-        \\ .endm # popaq
-        \\
-        \\ isrCommon:
-        // You may notice that we don't store segment registers
-        // The segment registers don't hold any meaningful values in long mode.
-        \\    pushaq // Save the registers state.
-        \\
-        // Save the pointer to the context
-        \\    mov %rsp, context
-        \\    
-        // Handle the interrupt event
-        \\    call interruptDispatch
-        \\
-        // Restore the pointer to the context
-        \\    mov context, %rsp
-        \\    popaq
-        \\    add $16, %rsp 
-        \\    iretq
-        \\ .type isrCommon, @function
-        \\
-        // Exceptions.
-        \\ isrGenerate 0
-        \\ isrGenerate 1
-        \\ isrGenerate 2
-        \\ isrGenerate 3
-        \\ isrGenerate 4
-        \\ isrGenerate 5
-        \\ isrGenerate 6
-        \\ isrGenerate 7
-        \\ isrGenerate 8, 1
-        \\ isrGenerate 9
-        \\ isrGenerate 10, 1
-        \\ isrGenerate 11, 1
-        \\ isrGenerate 12, 1
-        \\ isrGenerate 13, 1
-        \\ isrGenerate 14, 1
-        \\ isrGenerate 15
-        \\ isrGenerate 16
-        \\ isrGenerate 17, 1
-        \\ isrGenerate 18
-        \\ isrGenerate 19
-        \\ isrGenerate 20
-        \\ isrGenerate 21, 1
-        \\ isrGenerate 22
-        \\ isrGenerate 23
-        \\ isrGenerate 24
-        \\ isrGenerate 25
-        \\ isrGenerate 26
-        \\ isrGenerate 27
-        \\ isrGenerate 28
-        \\ isrGenerate 29, 1
-        \\ isrGenerate 30, 1
-        \\ isrGenerate 31
-        // IRQs.
-        \\ isrGenerate 32
-        \\ isrGenerate 33
-        \\ isrGenerate 34
-        \\ isrGenerate 35
-        \\ isrGenerate 36
-        \\ isrGenerate 37
-        \\ isrGenerate 38
-        \\ isrGenerate 39
-        \\ isrGenerate 40
-        \\ isrGenerate 41
-        \\ isrGenerate 42
-        \\ isrGenerate 43
-        \\ isrGenerate 44
-        \\ isrGenerate 45
-        \\ isrGenerate 46
-        \\ isrGenerate 47
-        // suprious interrupt
-        \\ isrGenerate 110
-        // syscall
-        \\ isrGenerate 128
-    );
-}
-// Interrupt Service Routines defined externally in assembly.
-extern fn isr0() void;
-extern fn isr1() void;
-extern fn isr2() void;
-extern fn isr3() void;
-extern fn isr4() void;
-extern fn isr5() void;
-extern fn isr6() void;
-extern fn isr7() void;
-extern fn isr8() void;
-extern fn isr9() void;
-extern fn isr10() void;
-extern fn isr11() void;
-extern fn isr12() void;
-extern fn isr13() void;
-extern fn isr14() void;
-extern fn isr15() void;
-extern fn isr16() void;
-extern fn isr17() void;
-extern fn isr18() void;
-extern fn isr19() void;
-extern fn isr20() void;
-extern fn isr21() void;
-extern fn isr22() void;
-extern fn isr23() void;
-extern fn isr24() void;
-extern fn isr25() void;
-extern fn isr26() void;
-extern fn isr27() void;
-extern fn isr28() void;
-extern fn isr29() void;
-extern fn isr30() void;
-extern fn isr31() void;
-
-// IRQs
-extern fn isr32() void;
-extern fn isr33() void;
-extern fn isr34() void;
-extern fn isr35() void;
-extern fn isr36() void;
-extern fn isr37() void;
-extern fn isr38() void;
-extern fn isr39() void;
-extern fn isr40() void;
-extern fn isr41() void;
-extern fn isr42() void;
-extern fn isr43() void;
-extern fn isr44() void;
-extern fn isr45() void;
-extern fn isr46() void;
-extern fn isr47() void;
-// syscall
-extern fn isr110() void;
-extern fn isr128() void;
-
-fn install() void {
-    idt_set_descriptor(0, isr0, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(1, isr1, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(2, isr2, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(3, isr3, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(4, isr4, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(5, isr5, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(6, isr6, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(7, isr7, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(8, isr8, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(9, isr9, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(10, isr10, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(11, isr11, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(12, isr12, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(13, isr13, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(14, isr14, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(15, isr15, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(16, isr16, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(17, isr17, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(18, isr18, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(19, isr19, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(20, isr20, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(21, isr21, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(22, isr22, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(23, isr23, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(24, isr24, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(25, isr25, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(26, isr26, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(27, isr27, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(28, isr28, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(29, isr29, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(30, isr30, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(31, isr31, @intFromEnum(FLAGS.interrupt_gate));
-    // IRQs
-    idt_set_descriptor(32, isr32, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(33, isr33, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(34, isr34, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(35, isr35, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(36, isr36, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(37, isr37, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(38, isr38, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(39, isr39, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(40, isr40, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(41, isr41, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(42, isr42, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(43, isr43, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(44, isr44, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(45, isr45, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(46, isr46, @intFromEnum(FLAGS.interrupt_gate));
-    idt_set_descriptor(47, isr47, @intFromEnum(FLAGS.interrupt_gate));
-    // syscall
-    idt_set_descriptor(128, isr128, @intFromEnum(FLAGS.interrupt_gate));
+        \\     add $16, %rsp
+        \\     iretq
+    ;
+    return struct {
+        fn handle() callconv(.Naked) void {
+            asm volatile (save_status ::: "memory");
+            asm volatile ("call interruptDispatch");
+            asm volatile (restore_status ::: "memory");
+        }
+    }.handle;
 }
