@@ -196,8 +196,6 @@ export fn interruptDispatch() void {
                     context.rip,
                     context.rsp,
                 });
-                // log.err("EXCEPTION_{} is not registered", interrupt_num);
-                // cpu.stopCPU();
             }
         },
         // this logic should be refactored
@@ -210,7 +208,7 @@ export fn interruptDispatch() void {
                         APIC.EOI();
                     } else {
                         log.err("APIC_{} is not registered", interrupt_num);
-                        cpu.stopCPU();
+                        // cpu.stopCPU();
                     }
                 }
             } else {
@@ -224,7 +222,7 @@ export fn interruptDispatch() void {
                         fun();
                     } else {
                         log.err("PIC_IRQ_{} is not registered", interrupt_num);
-                        cpu.stopCPU();
+                        // cpu.stopCPU();
                     }
                 }
                 PIC.EOI(interrupt_num, spurious);
@@ -242,12 +240,12 @@ export fn interruptDispatch() void {
                         APIC.EOI();
                     } else {
                         log.err("APIC_GSI_{} is not registered", interrupt_num);
-                        cpu.stopCPU();
+                        // cpu.stopCPU();
                     }
                 }
             } else {
                 log.err("other_{} is not registered", interrupt_num);
-                cpu.stopCPU();
+                // cpu.stopCPU();
             }
         },
     }
