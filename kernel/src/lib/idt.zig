@@ -277,13 +277,21 @@ const Context = packed struct {
 
 // note: this registers order is according to hhe following assembly macro pushaq
 const Registers = packed struct {
+    r15: u64 = 0,
+    r14: u64 = 0,
+    r13: u64 = 0,
+    r12: u64 = 0,
+    r11: u64 = 0,
+    r10: u64 = 0,
+    r9: u64 = 0,
+    r8: u64 = 0,
     rdi: u64 = 0,
     rsi: u64 = 0,
     rbp: u64 = 0,
     rsp: u64 = 0,
-    rbx: u64 = 0,
     rdx: u64 = 0,
     rcx: u64 = 0,
+    rbx: u64 = 0,
     rax: u64 = 0,
 };
 
@@ -1010,13 +1018,21 @@ fn generate_handle(comptime num: u8) fn () callconv(.Naked) void {
     const public = std.fmt.comptimePrint(
         \\     push ${}
         \\     push %rax
+        \\     push %rbx
         \\     push %rcx
         \\     push %rdx
-        \\     push %rbx
         \\     push %rsp
         \\     push %rbp
         \\     push %rsi
         \\     push %rdi
+        \\     push %r8
+        \\     push %r9
+        \\     push %r10
+        \\     push %r11
+        \\     push %r12
+        \\     push %r13
+        \\     push %r14
+        \\     push %r15
         \\     mov %rsp, context
     , .{num});
 
@@ -1034,13 +1050,21 @@ fn generate_handle(comptime num: u8) fn () callconv(.Naked) void {
             public;
     const restore_status =
         \\     mov context, %rsp
+        \\     pop %r15
+        \\     pop %r14
+        \\     pop %r13
+        \\     pop %r12
+        \\     pop %r11
+        \\     pop %r10
+        \\     pop %r9
+        \\     pop %r8
         \\     pop %rdi
         \\     pop %rsi
         \\     pop %rbp
         \\     pop %rsp
-        \\     pop %rbx
         \\     pop %rdx
         \\     pop %rcx
+        \\     pop %rbx
         \\     pop %rax
         \\     add $16, %rsp
         \\     iretq
