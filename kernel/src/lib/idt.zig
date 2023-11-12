@@ -179,8 +179,25 @@ export fn interruptDispatch() void {
             if (handlers[interrupt_num]) |fun| {
                 fun();
             } else {
-                log.err("EXCEPTION_{} is not registered", interrupt_num);
-                cpu.stopCPU();
+                tty.panicf(
+                    \\EXCEPTION: {s}
+                    \\   VECTOR: 0x{x:0>2}
+                    \\    ERROR: 0b{b:0>17}
+                    \\   RFLAGS: 0b{b:0>22}
+                    \\       CS: 0x{x:0>2}
+                    \\      RIP: 0x{x}
+                    \\      RSP: 0x{x}
+                , .{
+                    messages[interrupt_num],
+                    interrupt_num,
+                    context.error_code,
+                    context.rflags,
+                    context.cs,
+                    context.rip,
+                    context.rsp,
+                });
+                // log.err("EXCEPTION_{} is not registered", interrupt_num);
+                // cpu.stopCPU();
             }
         },
         // this logic should be refactored
