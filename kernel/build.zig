@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) !void {
     });
 
     // trip the symbols when build ReleaseSafe
-    if (kernel.optimize == .ReleaseSafe) {
+    if (kernel.optimize == .ReleaseSafe or kernel.optimize == .ReleaseFast) {
         kernel.strip = true;
     }
     kernel.code_model = .kernel;
