@@ -23,7 +23,7 @@ pub const P_MEM = struct {
     /// this is entries for memory map
     var memmap_entries: []*limine.MemoryMapEntry = undefined;
 
-    var memory_map: []u8 = undefined;
+    var memory_map: []u1 = undefined;
 
     // page number
     var total_pages: u64 = 0;
@@ -54,12 +54,12 @@ pub const P_MEM = struct {
         }
 
         // Get the number of pages occupied by the memory mapped array
-        memmap_pages = (total_pages + PAGE_SIZE - 1) / PAGE_SIZE;
+        memmap_pages = (total_pages / 8 + PAGE_SIZE - 1) / PAGE_SIZE;
         free_pages = total_pages - memmap_pages;
 
         for (memmap_entries) |value| {
-            if (value.kind == .usable and value.length > total_pages) {
-                memory_map = @as([*]u8, @ptrFromInt(value.base))[0..total_pages];
+            if (value.kind == .usable and value.length > memmap_pages) {
+                memory_map = @as([*]u1, @ptrFromInt(value.base))[0..total_pages];
                 break;
             }
         }
@@ -189,7 +189,7 @@ pub const V_MEM = struct {
                     // remap memory_map to high address
                     // replace memory_map to high address
                     var memory_map_ptr = @intFromPtr(P_MEM.memory_map.ptr);
-                    P_MEM.memory_map = @as([*]u8, @ptrFromInt(memory_map_ptr + response.offset))[0..P_MEM.total_pages];
+                    P_MEM.memory_map = @as([*]u1, @ptrFromInt(memory_map_ptr + response.offset))[0..P_MEM.total_pages];
                 }
             } else {
                 @panic("get HHDM response fails");
