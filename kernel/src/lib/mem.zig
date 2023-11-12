@@ -118,7 +118,11 @@ pub const P_MEM = struct {
                 if (memory_map[map_index] == 0) {
                     memory_map[map_index] = 1;
                     free_pages -= 1;
-                    return map_index_to_addr(map_index);
+                    var addr = map_index_to_addr(map_index);
+                    if (addr & 0xfff != 0) {
+                        tty.panicf("sorry, allocate memory failed, the addr 0x{x} is not 4K aligned", addr);
+                    }
+                    return addr;
                 }
                 map_index += 1;
             }
