@@ -1,3 +1,4 @@
+const std = @import("std");
 const limine = @import("limine");
 const config = @import("config");
 
@@ -341,3 +342,18 @@ pub fn get_cpu_count() usize {
     }
     @panic("faild to get smp_request");
 }
+
+// this is a spinlock implement
+pub const SpinLock = struct {
+    const lockType = std.atomic.Atomic(bool);
+
+    lock: lockType = lockType.init(false),
+
+    pub fn acquire(self: *SpinLock) void {
+        while (self.lock.compareAndSwap(false, true, .SeqCst, .SeqCst)) |_| {}
+    }
+
+    pub fn release(self: *SpinLock) void {
+        self.lock.store(false, .SeqCst);
+    }
+};

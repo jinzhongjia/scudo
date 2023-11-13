@@ -1,6 +1,7 @@
 const builtin = @import("builtin");
 const lib = @import("lib.zig");
 const cpu = @import("cpu.zig");
+const std = @import("std");
 const println = lib.tty.println;
 
 const log = lib.log.scoped(.scudo);
@@ -8,6 +9,14 @@ const log = lib.log.scoped(.scudo);
 /// this is a test function for kernel
 pub inline fn test_kernel() void {
     log.debug("build mode {s}", @tagName(builtin.mode));
+
+    if (false) {
+        var lock = cpu.SpinLock{};
+        lock.acquire();
+        // NOTE: this will block
+        lock.acquire();
+        lock.release();
+    }
 
     // println("0x{x}", cpu.IA32_APIC_BASE.read().getAddress());
     // asm volatile ("int $66");
