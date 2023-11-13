@@ -350,7 +350,9 @@ pub const SpinLock = struct {
     lock: lockType = lockType.init(false),
 
     pub fn acquire(self: *SpinLock) void {
-        while (self.lock.compareAndSwap(false, true, .SeqCst, .SeqCst)) |_| {}
+        while (self.lock.compareAndSwap(false, true, .SeqCst, .SeqCst)) |_| {
+            std.atomic.spinLoopHint();
+        }
     }
 
     pub fn release(self: *SpinLock) void {
