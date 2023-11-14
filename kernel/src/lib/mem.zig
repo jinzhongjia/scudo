@@ -35,6 +35,8 @@ pub const P_MEM = struct {
 
     var kernel_region_size: u64 = undefined;
 
+    var alloc_start: u64 = 0;
+
     fn init() void {
         if (limine_mem_map.response) |response| {
             memmap_entries = response.entries();
@@ -113,11 +115,12 @@ pub const P_MEM = struct {
 
     pub fn allocate_page() usize {
         var map_index: u64 = 0;
-        for (memmap_entries) |entry| {
+        for (memmap_entries[alloc_start..]) |entry| {
             for (0..entry.length / PAGE_SIZE) |_| {
                 if (memory_map[map_index] == 0) {
                     memory_map[map_index] = 1;
                     free_pages -= 1;
+                    alloc_start += map_index;
                     var addr = map_index_to_addr(map_index);
                     if (addr & 0xfff != 0) {
                         tty.panicf("sorry, allocate memory failed, the addr 0x{x} is not 4K aligned", addr);
@@ -149,6 +152,9 @@ pub const P_MEM = struct {
         }
 
         memory_map[map_index] = 0;
+        if (map_index < alloc_start) {
+            alloc_start = map_index;
+        }
         free_pages += 1;
     }
 
