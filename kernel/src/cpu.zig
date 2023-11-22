@@ -58,7 +58,7 @@ pub inline fn outb(port: u16, value: u8) void {
 
 /// just for debug
 pub inline fn debug() void {
-    asm volatile ("xchgw %bx, %bx");
+    asm volatile ("xchgw %%bx, %%bx");
 }
 
 /// Invalidate the TLB entry associated with the given virtual address.
