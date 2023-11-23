@@ -125,7 +125,7 @@ pub const CPUID = extern struct {
     }
 
     pub inline fn check_available() bool {
-        var res: usize = asm volatile (
+        const res: usize = asm volatile (
             \\ pushfq
             \\ pushfq
             \\ xorq $0x200000, (%%rsp)
@@ -268,7 +268,7 @@ pub inline fn write_MSR(msr: u32, value: u64) void {
 
 pub const MSR = struct {
     pub fn is_avaiable() bool {
-        var res = CPUID.cpuid(1);
+        const res = CPUID.cpuid(1);
         return res.edx & 0x10 != 0;
     }
 

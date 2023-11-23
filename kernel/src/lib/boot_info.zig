@@ -14,6 +14,6 @@ fn bootTimeStamp() i64 {
 }
 
 pub fn bootTime2UTC() Time {
-    var timeStamp = bootTimeStamp();
+    const timeStamp = bootTimeStamp();
     return time.timeStamp2UTC(@intCast(timeStamp));
 }

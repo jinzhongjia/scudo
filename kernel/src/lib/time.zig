@@ -15,7 +15,7 @@ const SEC_PER_HOUR = 3600;
 const SEC_PER_MIN = 60;
 
 pub fn init() void {
-    var register_b = CMOS.cmos_read(CMOS.CMOS_B);
+    const register_b = CMOS.cmos_read(CMOS.CMOS_B);
     if (register_b & 0x04 == 0) {
         CMOS.is_BCD = true;
     }
@@ -302,13 +302,13 @@ const RTC = struct {
     fn set_alarm_time(secs_value: u32) void {
         var secs_tmp = secs_value;
 
-        var secs: u8 = @intCast(secs_tmp % 60);
+        const secs: u8 = @intCast(secs_tmp % 60);
         secs_tmp /= 60;
 
-        var minute: u8 = @intCast(secs_tmp % 60);
+        const minute: u8 = @intCast(secs_tmp % 60);
         secs_tmp /= 60;
 
-        var hour: u32 = secs_tmp;
+        const hour: u32 = secs_tmp;
 
         var now_time = nowTime();
 
@@ -333,7 +333,7 @@ const RTC = struct {
 
     fn interrupt_handle() void {
         // TODO: 实现具体的定时处理逻辑
-        var status = CMOS.cmos_read(CMOS.CMOS_C);
+        const status = CMOS.cmos_read(CMOS.CMOS_C);
         tty.println("alarm has been triggered, status: 0b{b:0>8}", status);
 
         set_alarm_time(2);

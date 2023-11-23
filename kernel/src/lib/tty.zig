@@ -40,7 +40,7 @@ fn yPos() usize {
 fn putchar(FRColor: framebuffer.Entry, BKColor: framebuffer.Entry, char: u8) void {
     const address = framebuffer.address + xPos() + yPos();
 
-    var fontp = font.font_ascii[char];
+    const fontp = font.font_ascii[char];
     for (0..font.font_height) |i| {
         var address_tmp = address + i * framebuffer.pitch;
         var testVal: u32 = 0x100;

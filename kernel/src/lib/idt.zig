@@ -512,7 +512,7 @@ const APIC = struct {
     var ioAPIC_ver: u32 = undefined;
     fn io_apic_init() void {
         ioAPIC_ver = read_ioapic_register(0x1);
-        var rte_num: u8 = @truncate((ioAPIC_ver >> 16) & 0xff);
+        const rte_num: u8 = @truncate((ioAPIC_ver >> 16) & 0xff);
         // remap gsi
         for (0..rte_num) |value| {
             ioapic_redirect(@intCast(value), 0, null);
@@ -549,8 +549,8 @@ const APIC = struct {
         }
 
         fn get_revision(self: RSDP) ?REVISION {
-            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
-            var tmp_revision = tmp_ptr[15];
+            const tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            const tmp_revision = tmp_ptr[15];
             if (tmp_revision == 0) {
                 return REVISION.v1;
             }
@@ -583,14 +583,14 @@ const APIC = struct {
         }
 
         fn rsdt_addr(self: RSDP) usize {
-            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 16);
+            const tmp_ptr: *u32 = @ptrFromInt(self.addr + 16);
             return @intCast(tmp_ptr.*);
         }
 
         fn length(self: RSDP) u32 {
             if (self.get_revision()) |revision| {
                 if (revision == .v2) {
-                    var tmp_ptr: *u32 = @ptrFromInt(self.addr + 20);
+                    const tmp_ptr: *u32 = @ptrFromInt(self.addr + 20);
                     return tmp_ptr.*;
                 }
             }
@@ -598,7 +598,7 @@ const APIC = struct {
         }
 
         fn xsdt_addr(self: RSDP) usize {
-            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 24);
+            const tmp_ptr: *u32 = @ptrFromInt(self.addr + 24);
             return @intCast(tmp_ptr.*);
         }
     };
@@ -632,11 +632,11 @@ const APIC = struct {
         // TODO: add more parse
         rsdt = RSDT.init(mem.V_MEM.paddr_2_high_half(rsdp.rsdt_addr()));
 
-        var res: bool = false;
+        const res: bool = false;
         for (rsdt.pointers) |value| {
-            var addr: usize = value;
+            const addr: usize = value;
             var tmp = ACPI_SDT_header.init(addr);
-            var tmp_arr = "APIC";
+            const tmp_arr = "APIC";
             if (std.mem.eql(u8, tmp.signature(), tmp_arr)) {
                 madt = MADT.init(mem.V_MEM.paddr_2_high_half(addr));
                 parse_MADT();
@@ -661,16 +661,16 @@ const APIC = struct {
         var entries = madt.entries;
         var override_num: u8 = 0;
         while (index < madt.entries.len) {
-            var addr = @intFromPtr(&entries[index]);
+            const addr = @intFromPtr(&entries[index]);
 
             switch (entries[index]) {
                 0 => {
-                    var ptr: *align(1) MADT.Local_APIC = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.Local_APIC = @ptrFromInt(addr);
                     _ = ptr;
                     // log.debug("{any}", ptr.*);
                 },
                 1 => {
-                    var ptr: *align(1) MADT.IO_APIC = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.IO_APIC = @ptrFromInt(addr);
 
                     // important!
                     io_apic_addr =
@@ -679,28 +679,28 @@ const APIC = struct {
                     // log.debug("{any}", ptr.*);
                 },
                 2 => {
-                    var ptr: *align(1) MADT.IO_APIC_ISO = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.IO_APIC_ISO = @ptrFromInt(addr);
                     override_arr[override_num] = ptr;
                     override_num += 1;
                     // log.debug("{any}", ptr.*);
                 },
                 3 => {
-                    var ptr: *align(1) MADT.IO_APIC_NMI = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.IO_APIC_NMI = @ptrFromInt(addr);
                     _ = ptr;
                     // log.debug("{any}", ptr.*);
                 },
                 4 => {
-                    var ptr: *align(1) MADT.LOCAL_APIC_NMI = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.LOCAL_APIC_NMI = @ptrFromInt(addr);
                     _ = ptr;
                     // log.debug("{any}", ptr.*);
                 },
                 5 => {
-                    var ptr: *align(1) MADT.LOCAL_APIC_ADDR_OVERRIDE = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.LOCAL_APIC_ADDR_OVERRIDE = @ptrFromInt(addr);
                     _ = ptr;
                     // log.debug("{any}", ptr.*);
                 },
                 9 => {
-                    var ptr: *align(1) MADT.Process_Local_X2APIC = @ptrFromInt(addr);
+                    const ptr: *align(1) MADT.Process_Local_X2APIC = @ptrFromInt(addr);
                     _ = ptr;
                     // log.debug("{any}", ptr.*);
                 },
@@ -723,27 +723,27 @@ const APIC = struct {
     };
 
     fn write_ioapic_register(offset: u32, val: u32) void {
-        var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
+        const IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
         IOREGSEL.* = offset;
-        var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
+        const IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
         IOREGWIN.* = val;
     }
 
     fn read_ioapic_register(offset: u32) u32 {
-        var IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
+        const IOREGSEL: *volatile u32 = @ptrFromInt(io_apic_addr);
         IOREGSEL.* = offset;
-        var IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
+        const IOREGWIN: *volatile u32 = @ptrFromInt(io_apic_addr + 0x10);
         return IOREGWIN.*;
     }
 
     fn ioapic_redtbl_write(gsi: u32, val: u64) void {
-        var ioredtbl = gsi * 2 + 0x10;
+        const ioredtbl = gsi * 2 + 0x10;
         write_ioapic_register(ioredtbl, @truncate(val));
         write_ioapic_register(ioredtbl + 1, @truncate(val >> 32));
     }
 
     fn ioapic_redtbl_read(gsi: u32) u64 {
-        var ioredtbl = gsi * 2 + 0x10;
+        const ioredtbl = gsi * 2 + 0x10;
         const low = read_ioapic_register(ioredtbl);
         const high: u64 = read_ioapic_register(ioredtbl + 1);
         return (high << 32) + low;
@@ -773,7 +773,7 @@ const APIC = struct {
 
         fn init(paddr: usize) RSDT {
             var tmp_header = ACPI_SDT_header.init(paddr);
-            var tmp_pointers: []u32 = @as([*]u32, @ptrFromInt(paddr))[9 .. tmp_header.length() / 4];
+            const tmp_pointers: []u32 = @as([*]u32, @ptrFromInt(paddr))[9 .. tmp_header.length() / 4];
             return .{
                 .header = tmp_header,
                 .pointers = tmp_pointers,
@@ -879,12 +879,12 @@ const APIC = struct {
         }
 
         fn length(self: ACPI_SDT_header) u32 {
-            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 4);
+            const tmp_ptr: *u32 = @ptrFromInt(self.addr + 4);
             return tmp_ptr.*;
         }
 
         fn revision(self: ACPI_SDT_header) u8 {
-            var tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
+            const tmp_ptr: [*]u8 = @ptrFromInt(self.addr);
             return tmp_ptr[5];
         }
 
@@ -916,12 +916,12 @@ const APIC = struct {
         }
 
         fn creator_id(self: ACPI_SDT_header) u32 {
-            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 28);
+            const tmp_ptr: *u32 = @ptrFromInt(self.addr + 28);
             return tmp_ptr.*;
         }
 
         fn creator_revision(self: ACPI_SDT_header) u32 {
-            var tmp_ptr: *u32 = @ptrFromInt(self.addr + 32);
+            const tmp_ptr: *u32 = @ptrFromInt(self.addr + 32);
             return tmp_ptr.*;
         }
     };
@@ -931,7 +931,7 @@ const APIC = struct {
         apic_integrated,
 
         fn make(value: u32) APIC_VERSION {
-            var tmp = value & 0xff;
+            const tmp = value & 0xff;
             if (tmp < 0x10) {
                 return APIC_VERSION.apic_82489DX;
             } else if (0x10 <= tmp and tmp <= 0x15) {
@@ -1004,7 +1004,7 @@ const APIC = struct {
 
         fn write_register(apic_register: Register, value: u32) void {
             const offset: u16 = @intFromEnum(apic_register);
-            var ptr: *volatile u32 = @ptrFromInt(mem.V_MEM.paddr_2_high_half(ia32_apic_base.getAddress() + offset));
+            const ptr: *volatile u32 = @ptrFromInt(mem.V_MEM.paddr_2_high_half(ia32_apic_base.getAddress() + offset));
             ptr.* = value;
         }
     };

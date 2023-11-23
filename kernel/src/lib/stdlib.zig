@@ -14,7 +14,7 @@ pub const bitmap_t = struct {
 
     pub fn init(addr: usize, size: u64, offset: u64) bitmap_t {
         var bits_ptr: [*]u8 = @ptrFromInt(addr);
-        var bits: []u8 = bits_ptr[0..size];
+        const bits: []u8 = bits_ptr[0..size];
         @memset(bits, 0);
         return bitmap_t{
             .bits = bits,
@@ -27,15 +27,15 @@ pub const bitmap_t = struct {
             tty.panicf("test_bit is error, index {} is less than bitmap's offset {}", .{ index, bitmap.offset });
         }
 
-        var idx = index - bitmap.offset;
+        const idx = index - bitmap.offset;
 
-        var bytes = idx / 8;
+        const bytes = idx / 8;
 
         if (bytes >= bitmap.bits.len) {
             tty.panicf("test_bit is error, index {} is more than bitmap's length {}", .{ index, bitmap.bits.len });
         }
 
-        var bits: u3 = @intCast(idx % 8);
+        const bits: u3 = @intCast(idx % 8);
         return (bitmap.bits[bytes] & (@as(u8, 1) << bits)) != 0;
     }
 
@@ -44,15 +44,15 @@ pub const bitmap_t = struct {
             tty.panicf("set_bit is error, index {} is less than bitmap's offset {}", .{ index, bitmap.offset });
         }
 
-        var idx = index - bitmap.offset;
+        const idx = index - bitmap.offset;
 
-        var bytes = idx / 8;
+        const bytes = idx / 8;
 
         if (bytes >= bitmap.bits.len) {
             tty.panicf("set_bit is error, index {} is more than bitmap's length {}", .{ index, bitmap.bits.len });
         }
 
-        var bits: u3 = @intCast(idx % 8);
+        const bits: u3 = @intCast(idx % 8);
 
         if (value) {
             bitmap.bits[bytes] |= (@as(u8, 1) << bits);

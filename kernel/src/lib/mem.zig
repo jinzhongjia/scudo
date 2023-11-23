@@ -80,7 +80,7 @@ pub const P_MEM = struct {
         }
 
         if (comptime config.is_print_mem_info) {
-            var TOTAL_SIZE = free_pages * PAGE_SIZE;
+            const TOTAL_SIZE = free_pages * PAGE_SIZE;
             switch (config.display_type) {
                 0 => {
                     tty.println("available physical memory is {}B", TOTAL_SIZE);
@@ -121,7 +121,7 @@ pub const P_MEM = struct {
                     memory_map[map_index] = 1;
                     free_pages -= 1;
                     alloc_start += map_index;
-                    var addr = map_index_to_addr(map_index);
+                    const addr = map_index_to_addr(map_index);
                     if (addr & 0xfff != 0) {
                         tty.panicf("sorry, allocate memory failed, the addr 0x{x} is not 4K aligned", addr);
                     }
@@ -188,13 +188,13 @@ pub const V_MEM = struct {
                 if (config.if_print_HHDM) {
                     tty.println("HHDM is 0x{x}", response.offset);
                 }
-                var PML4_paddr = cpu.get_PML4();
-                var PML4_ptr = PML4_paddr + response.offset;
+                const PML4_paddr = cpu.get_PML4();
+                const PML4_ptr = PML4_paddr + response.offset;
                 PML4 = @ptrFromInt(PML4_ptr);
                 {
                     // remap memory_map to high address
                     // replace memory_map to high address
-                    var memory_map_ptr = @intFromPtr(P_MEM.memory_map.ptr);
+                    const memory_map_ptr = @intFromPtr(P_MEM.memory_map.ptr);
                     P_MEM.memory_map = @as([*]u1, @ptrFromInt(memory_map_ptr + response.offset))[0..P_MEM.total_pages];
                 }
             } else {
@@ -215,7 +215,7 @@ pub const V_MEM = struct {
     fn pageFault() noreturn {
         const interrupt_context = idt.context;
         const address = cpu.readCR2();
-        var code: *ERROR_CODE = @ptrCast(@volatileCast(&interrupt_context.error_code));
+        const code: *ERROR_CODE = @ptrCast(@volatileCast(&interrupt_context.error_code));
 
         tty.panicf(
             \\PAGE FAULT
@@ -413,7 +413,7 @@ pub const V_MEM = struct {
             tty.panicf("sorry, you pass a non-high-address: 0x{x}", virtual_addr);
         }
 
-        var offset = limine_HHDM.response.?.offset;
+        const offset = limine_HHDM.response.?.offset;
         if (virtual_addr > limine_kernel_addr.response.?.virtual_base) {
             tty.println("a virtual addr which is higher than kernel_addr to paddr", virtual_addr);
         }
@@ -426,7 +426,7 @@ pub const V_MEM = struct {
             tty.panicf("sorry, you pass a non-low-address: 0x{x}", paddr);
         }
 
-        var offset = limine_HHDM.response.?.offset;
+        const offset = limine_HHDM.response.?.offset;
 
         return paddr + offset;
     }
@@ -489,7 +489,7 @@ pub const V_MEM = struct {
     // prevent to use limine's default used address
     fn check_vaddr_legit(vaddr: usize) bool {
         for (P_MEM.memmap_entries) |mmap| {
-            var addr = paddr_2_high_half(mmap.base);
+            const addr = paddr_2_high_half(mmap.base);
             if (addr <= vaddr and vaddr < addr + mmap.length) {
                 return false;
             }
