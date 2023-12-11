@@ -160,7 +160,7 @@ const handlers_len = 256;
 // note: we use compile-time code to initialize an array, that 's cool
 var handlers: [handlers_len]?*const fn () void = init: {
     var initial_value: [handlers_len]?*const fn () void = undefined;
-    inline for (0..handlers_len) |index| {
+    for (0..handlers_len) |index| {
         initial_value[index] = null;
     }
     break :init initial_value;
