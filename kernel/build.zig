@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) !void {
     target.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
 
     const options = b.addOptions();
-    options.addOption(u64, "timeStamp", @intCast(std.time.timestamp()));
+    options.addOption(u64, "timeStamp", @as(u64, @intCast(std.time.timestamp())));
 
     // Build the kernel itself.
     const optimize = b.standardOptimizeOption(.{});
