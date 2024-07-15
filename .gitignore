@@ -4,3 +4,4 @@
 *.hdd
 bx_enh_dbg.ini
 .vscode
+kernel/.zig-cache

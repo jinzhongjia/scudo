@@ -1013,6 +1013,7 @@ const APIC = struct {
 fn generate_handle(comptime num: u8) fn () callconv(.Naked) void {
     const error_code_list = [_]u8{ 8, 10, 11, 12, 13, 14, 17, 21, 29, 30 };
 
+    
     const public = std.fmt.comptimePrint(
         \\     push ${}
         \\     push %rax

@@ -4,7 +4,7 @@
     .dependencies = .{
         .limine = .{
             .url = "https://github.com/limine-bootloader/limine-zig/archive/trunk.tar.gz",
-            .hash = "12202809180bab2c7ae3382781b2fc65395e74b49d99ff2595f3fea9f7cf66cfa963",
+            .hash = "1220f946f839eab2ec49dca1c805ce72ac3e3ef9c47b3afcdecd1c05a7b35f66d277",
         },
     },
     .paths = .{

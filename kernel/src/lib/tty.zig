@@ -249,17 +249,15 @@ pub fn logf(comptime format: []const u8, args: anytype, level: std.log.Level) vo
 }
 
 /// for log implemention
-pub const std_options = struct {
-    pub fn logFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
-        const scope_prefix = "(" ++ switch (builtin.mode) {
-            .Debug => @tagName(scope),
-            else => if (@intFromEnum(level) <= @intFromEnum(std.log.Level.info))
-                @tagName(scope)
-            else
-                return,
-        } ++ "): ";
+pub fn logFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+    const scope_prefix = "(" ++ switch (builtin.mode) {
+        .Debug => @tagName(scope),
+        else => if (@intFromEnum(level) <= @intFromEnum(std.log.Level.info))
+            @tagName(scope)
+        else
+            return,
+    } ++ "): ";
 
-        const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
-        logf(prefix ++ format ++ "\n", args, level);
-    }
-};
+    const prefix = "[" ++ comptime level.asText() ++ "] " ++ scope_prefix;
+    logf(prefix ++ format ++ "\n", args, level);
+}

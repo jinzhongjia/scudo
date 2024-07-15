@@ -6,7 +6,7 @@ A x86-64 kernel written with zig, the goal is to implement a kernel that support
 
 ## develop tools
 
-- zig(0.11 or higher)
+- zig(0.12 or higher)
 - xorriso
 - qemu-full
 - bochs
